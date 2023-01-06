@@ -14,19 +14,18 @@ Optimal phenotypes: 2 random distributions.
 
 ### Basics:
 
-- Average fitness of time. Also, distribution of fitnesses over time.
-- Best strategies.
-- Ages.
-- Complexity.
+- *Average fitness of time. Also, distribution of fitnesses over time.*
+- *Best strategies.*
+- *Ages.*
+- *Complexity.*
 
 ### Does evolvability evolve? Measure by:
 
-- fitness decrease when env changes (abs and relative)
-
+- *fitness decrease when env changes*
 - num gens needed to regain prev fitness 
-
-- - due to new muts or standing genetic variation
+  - due to new muts or standing genetic variation
   - classify everyone as specialist A or B or neither or generalist
+
 
 ### What kind of networks evolve? Measure by:
 
@@ -36,20 +35,19 @@ Optimal phenotypes: 2 random distributions.
 
 ### Variables to test:
 
-- Mut rates (introduce new ones?)
-- Alpha
-- Number of updates to network (max_iter)
-- Pop size
-- Frequency of env change
-- max age
-- network size
-- selection pressure (truncation_size)
+- *Mut rates (introduce new ones?)*
+- *Alpha*
+- *Number of updates to network (max_iter)*
+- *Pop size*
+- *Frequency of env change*
+- *max age*
+- *network size*
+- *selection pressure (truncation_size)*
 
 ### To change after if there is time:
 
 - only considering select nodes in fitness (implemented already)
-- complexity part of fitness function? 0 fitness for non-converging?
-- env change is different
+- complexity part of fitness function? 0 fitness for non-converging? (easy)
 - more than 1 pop (implemented already)
 - Crossover? (implemented already)
 
