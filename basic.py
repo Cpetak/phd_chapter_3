@@ -111,8 +111,8 @@ def evolutionary_algorithm(args, title, folder):
         # Evaluate fitnesses
         phenos = state[:,:,:num_genes_fit]
         fitnesses = fitness_function(phenos, targs[curr_targ])
-        cheaters = torch.where(complexities == 0)
-        fitnesses[cheaters] = 0 # 0 fitness for non-converging ?? complexity part of fitness function, or fitness function computed thorughout the different states ??
+        cheaters = torch.where(complexities == 0) # non-convergers
+        #fitnesses[cheaters] = 0 # 0 fitness for non-converging ?? complexity part of fitness function, or fitness function computed thorughout the different states ??
         max_fits.append(fitnesses.max().item()) # keeping track of max fitness
         ave_fits.append(fitnesses.mean().item()) # keeping track of average fitness
         run.log({'max_fits': fitnesses.max().item()}, commit=False)
@@ -253,23 +253,23 @@ if __name__ == "__main__":
     #parser.add_argument('-alpha', type=int, default=10, help="Alpha for sigmoid function")
     args.alpha = 10
     #parser.add_argument('-num_genes_consider', type=float, default=0.5, help="proportion of genes considered for fitness")
-    args.num_genes_consider = 0.5
+    args.num_genes_consider = 1
     #parser.add_argument('-mut_rate', type=float, default=0.1, help="rate of mutation (i.e. number of genes to mutate)")
     args.mut_rate = 0.1
     #parser.add_argument('-mut_size', type=float, default=0.5, help="size of mutation")
     args.mut_size = 0.5
     #parser.add_argument('-num_generations', type=int, default=100000, help="number of generations to run the experiment for") # number of generations
-    args.num_generations = 50000
+    args.num_generations = 500
     #parser.add_argument('-truncation_prop', type=float, default=0.2, help="proportion of individuals selected for reproduction")
     args.truncation_prop = 0.2
     #parser.add_argument('-max_age', type=int, default=30, help="max age at which individual is replaced by its kid")
-    args.max_age = 30
+    args.max_age = 100000000000
     #parser.add_argument('-season_len', type=int, default=100, help="number of generations between environmental flips")
-    args.season_len = 100
+    args.season_len = 100000000000
     #parser.add_argument('-proj', type=str, default="EC_final_project", help="Name of the project (for wandb)")
-    args.proj = "EC_final_project"
+    args.proj = "phd_chapt_3"
     #parser.add_argument('-exp_type', type=str, default="BASIC", help="Name your experiment for grouping")
-    args.exp_type = "BASIC"
+    args.exp_type = "testing"
 
     #parser.add_argument('-crossover', type=str, default="NO", help="Options: NO, uniform, twopoint")
     args.crossover = "NO"
@@ -288,9 +288,6 @@ if __name__ == "__main__":
 
     args.truncation_size=int(args.truncation_prop*args.pop_size)
 
-    #TO CHANGE
-    args.adaptive_mut = True
-    args.meta_mut_rate = 0.001
     print(args)
 
     args.num_crossover = int(args.crossover_freq * args.pop_size) #how many individuals will be involved in crossover
@@ -302,7 +299,7 @@ if __name__ == "__main__":
         args.pop_size % args.truncation_size == 0
     ), "Error: select different trunction_prop, received {args.pops_size}"
 
-    
+
     run, folder = prepare_run("molanu", args.proj, args)
 
     evolutionary_algorithm(args, f"{args.num_genes_consider}", folder)
@@ -318,4 +315,3 @@ if __name__ == "__main__":
         #args.max_age = max_age
         #print(args)
         #evolutionary_algorithm(args, f"{max_age}_{rep}_", folder)
-
