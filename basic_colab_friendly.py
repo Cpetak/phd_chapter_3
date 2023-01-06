@@ -288,7 +288,6 @@ if __name__ == "__main__":
 
     args.truncation_size=int(args.truncation_prop*args.pop_size)
 
-
     print(args)
 
     args.num_crossover = int(args.crossover_freq * args.pop_size) #how many individuals will be involved in crossover
