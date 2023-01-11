@@ -313,7 +313,7 @@ def evolutionary_algorithm(args, title, folder):
     stats["spec_B"] = spec_B
     stats["gen"] = genal
 
-    with open(f"{folder}/basic_{title}.pkl", "wb") as f:
+    with open(f"{folder}/{title}.pkl", "wb") as f:
         pickle.dump(stats, f)
 
 if __name__ == "__main__":
@@ -334,19 +334,19 @@ if __name__ == "__main__":
     #parser.add_argument('-mut_size', type=float, default=0.5, help="size of mutation")
     args.mut_size = 0.5
     #parser.add_argument('-num_generations', type=int, default=100000, help="number of generations to run the experiment for") # number of generations
-    args.num_generations = 500
+    args.num_generations = 5000
     #parser.add_argument('-truncation_prop', type=float, default=0.2, help="proportion of individuals selected for reproduction")
     args.truncation_prop = 0.2
     #parser.add_argument('-max_age', type=int, default=30, help="max age at which individual is replaced by its kid")
-    args.max_age = 100000000000
+    args.max_age = 1000000000000000
     #parser.add_argument('-season_len', type=int, default=100, help="number of generations between environmental flips")
     args.season_len = 20
     #parser.add_argument('-selection_size', type=float, default=1, help="what proportion of the population to test for strategy (specialist, generatist)")
-    args.selection_size = 0.1
+    args.selection_size = 0.2
     #parser.add_argument('-proj', type=str, default="EC_final_project", help="Name of the project (for wandb)")
     args.proj = "phd_chapt_3"
     #parser.add_argument('-exp_type', type=str, default="BASIC", help="Name your experiment for grouping")
-    args.exp_type = "testing"
+    args.exp_type = "season_length_20"
 
     #parser.add_argument('-crossover', type=str, default="NO", help="Options: NO, uniform, twopoint")
     args.crossover = "NO"
@@ -380,7 +380,7 @@ if __name__ == "__main__":
 
     run, folder = prepare_run("molanu", args.proj, args)
 
-    evolutionary_algorithm(args, f"{args.num_genes_consider}", folder)
+    evolutionary_algorithm(args, f"{args.exp_type}", folder)
 
     #for num_genes_consider in [0.2, 0.5, 0.8]:
     #for season_len in [50, 100, 500]:
