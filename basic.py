@@ -51,6 +51,47 @@ def prepare_run(entity, project, args, folder_name="results"):
 
     return run, folder
 
+def calc_strategy(phenotypes, envs, args, curr_targ):
+    perm = torch.randperm(phenotypes.size(0))
+    idx = perm[:args.selection_size*args.pop_size]
+    sample = phenotypes[idx]
+
+    spec_A = 0
+    spec_B = 0
+    gen = 0
+    low = 0
+    #high = 0
+
+    first_fitness = fitness_function(sample, envs[0]) #env A
+    #curr_targ = (curr_targ + 1) % 2
+    second_fitness = fitness_function(sample, envs[1]) #env B
+
+    first_fitness = first_fitness / (int(args.num_genes_consider*args.grn_size))
+    second_fitness = second_fitness / (int(args.num_genes_consider*args.grn_size))
+
+    for i in range(len(first_fitness)):
+        if (first_fitness[i] < 0.3 and second_fitness[i] < 0.3) or (0.3 <= first_fitness[i] <= 0.7 and second_fitness[i] < 0.3) or (first_fitness[i] < 0.3 and 0.3 <=second_fitness[i] <= 0.7):
+        low += 1
+        #if (first_fitness[i] > 0.7 and second_fitness[i] > 0.7) or (0.3 <= first_fitness[i] <= 0.7 and second_fitness[i] > 0.7) or (first_fitness[i] > 0.7 and 0.3 <=second_fitness[i] <= 0.7):
+        #high += 1
+        if (first_fitness[i] < 0.3 and second_fitness[i] > 0.7):
+        spec_B += 1
+        if (first_fitness[i] > 0.7 and second_fitness[i] < 0.3):
+        spec_A += 1
+        if 0.3 <= first_fitness[i] <= 0.7 and 0.3 <= second_fitness[i] <= 0.7:
+        gen += 1
+
+    run.log({'low': low}, commit=False)
+    #run.log({'high': high}, commit=False) #impossible
+    run.log({'spec_A': spec_A}, commit=False)
+    run.log({'spec_B': spec_B}, commit=False)
+    run.log({'gen': gen}, commit=False)
+
+    #print(list(zip(first_fitnesses,second_fitnesses)))
+    #torch.numel(first_fitnesses[first_fitnesses>0.7])
+
+    return(low,spec_A,spec_B,gen)
+
 # Evolve
 def evolutionary_algorithm(args, title, folder):
 
@@ -62,31 +103,44 @@ def evolutionary_algorithm(args, title, folder):
     targ = targ[:,:num_genes_fit] # create targets only for relevant genes
     targs = [targ, 1 - targ.detach().clone()] # alternative target is the exact opposite
     curr_targ = 0 # ID of which target is the current one
+    previous_targ=curr_targ # will be used for measuring evolvability
+    ages = torch.zeros(args.pop_size).to(device)
+    time_since_change = 0 # num gens since last environmental switch
+    epoc = 0
 
     # Keeping track
 
-    ages = torch.zeros(args.pop_size)
     max_fits = []
     ave_fits = []
+    st_div_fits = []
     ave_complex = []
-    champions = []
     max_ages = []
     ave_ages = []
-    best_grns = []
-    mut_rates_t = []
-    mut_sizes_t = []
-
     diversities = []
+    low = []
+    spec_A = []
+    spec_B = []
+    gen = []
+
+    delta_fit_envchange_max = []
+    delta_fit_envchange = []
+    rebound_time = torch.zeros(int(args.num_generations/args.season_len)).to(device)
+    rebound_time_max = torch.zeros(int(args.num_generations/args.season_len)).to(device)
+
+    best_grns = []
+    #champions = []
 
     # create all possible masks for 2-point crossover
-    if args.crossover == "twopoint":
-        idxs = np.array(list(combinations(range(0, args.grn_size+1),2)))
-        masks = torch.zeros(len(idxs),args.grn_size,args.grn_size, device="cuda")
-        for i,(start,end) in enumerate(idxs):
-          masks[i,:,start:end] = 1
-        antimasks = 1 - masks
+    #if args.crossover == "twopoint":
+        #idxs = np.array(list(combinations(range(0, args.grn_size+1),2)))
+        #masks = torch.zeros(len(idxs),args.grn_size,args.grn_size, device="cuda")
+        #for i,(start,end) in enumerate(idxs):
+          #masks[i,:,start:end] = 1
+        #antimasks = 1 - masks
 
     for gen in trange(args.num_generations):
+
+        time_since_change += 1
 
         complexities = torch.zeros(args.pop_size)
 
@@ -113,44 +167,52 @@ def evolutionary_algorithm(args, title, folder):
         fitnesses = fitness_function(phenos, targs[curr_targ])
         cheaters = torch.where(complexities == 0) # non-convergers
         #fitnesses[cheaters] = 0 # 0 fitness for non-converging ?? complexity part of fitness function, or fitness function computed thorughout the different states ??
+
+        if previous_targ!=curr_targ: # checking reduction in fitness right after env change
+          delta_fit_envchange.append((fitnesses.mean().item())/(ave_fits[-1]))
+          run.log({'delta_fit_envchange': (fitnesses.mean().item())/(ave_fits[-1])}, commit=False)
+          delta_fit_envchange_max.append((fitnesses.max().item())/(max_fits[-1]))
+          run.log({'delta_fit_envchange_max': (fitnesses.max().item())/(max_fits[-1])}, commit=False)
+
+        #print(epoc)
+        if epoc != 0: # if it is not the first epoc
+          if rebound_time[epoc] == 0: # if for this epoc, fitness rebound hasn't happened yet
+            if ave_fits[(-1*time_since_change)] <= fitnesses.mean().item(): # if fitness rebounded this generation
+              rebound_time[epoc] = time_since_change
+              # if reound_time is 0 somewhere, that means that previous good fitness wasn't found in this epoc.
+              # if there is a 0 right after, that means that the new "max" (final fitness before env change) was also not recovered.
+              # note the shift in frame of reference
+
+          if rebound_time_max[epoc] == 0: # if for this epoc, fitness rebound hasn't happened yet
+            if max_fits[(-1*time_since_change)] <= fitnesses.max().item(): # if fitness rebounded this generation
+              rebound_time_max[epoc] = time_since_change
+              # if reound_time is 0 somewhere, that means that previous good fitness wasn't found in this epoc.
+              # if there is a 0 right after, that means that the new "max" (final fitness before env change) was also not recovered.
+              # note the shift in frame of reference
+          if time_since_change == args.season_len:
+            run.log({'rebound_time': rebound_time[epoc]}, commit=False)
+            run.log({'rebound_time_max': rebound_time_max[epoc]}, commit=False)
+
         max_fits.append(fitnesses.max().item()) # keeping track of max fitness
         ave_fits.append(fitnesses.mean().item()) # keeping track of average fitness
+        st_div_fits.append(fitnesses.std().item())
         run.log({'max_fits': fitnesses.max().item()}, commit=False)
         run.log({'ave_fits': fitnesses.mean().item()}, commit=False)
+        run.log({'st_div_fits': fitnesses.std().item()}, commit=False)
 
-        # Adaptive mut rate
-        if args.adaptive_mut:
-            # where ages == 0 -> they where born in the previous generation and haven't been modified yet but fitnesses are calculated
-            pfits = fitnesses[torch.where(ages > 0)] #fitnesses of parents
-            cfits = fitnesses[torch.where(ages == 0)] #fitnesses of children
-
-            if len(pfits) > 0 and len(cfits) > 0:
-              p_min_fitness=torch.min(pfits) # min fitness of parents
-              num_fit_children = len(cfits[torch.where(cfits > p_min_fitness)]) # number of children fitter than worse parent
-
-              if num_fit_children > (len(cfits)/5): # if more than 1/5 of children are better than worse parent -> increase learning rate as we are still far from optimum
-                #print("increase learning rate")
-                args.mut_rate += args.meta_mut_rate
-                args.mut_size += args.meta_mut_rate
-
-              if num_fit_children < (len(cfits)/5): # if less than 1/5 of children are better than worse parent -> decrease learning rate as we are close to optimum
-                #print("decrease learning rate")
-                if args.mut_rate - args.meta_mut_rate > 0:
-                    args.mut_rate -= args.meta_mut_rate
-                if args.mut_size - args.meta_mut_rate > 0:
-                    args.mut_size -= args.meta_mut_rate
-
-            mut_rates_t.append(args.mut_rate)
-            run.log({'mut_rates_t': args.mut_rate}, commit=False)
-            mut_sizes_t.append(args.mut_size)
-            run.log({'mut_sizes_t': args.mut_size}, commit=False)
+        #if gen == (args.num_generations - 1):
+        l,sA,sB,g=calc_strategy(phenos, targs, args, curr_targ)
+        low.append(l)
+        spec_A.append(sA)
+        spec_B.append(sB)
+        gen.append(g)
 
         # Selection
         perm = torch.argsort(fitnesses, descending=True)
         parent_locs = perm[:args.truncation_size] # location of top x parents in the array of individuals
         children_locs = perm[args.truncation_size:] # location of individuals that won't survive and hence will be replaced by others' children
 
-        champions.append(state[perm[0]].detach().clone().cpu().squeeze(0).numpy()) # keeping tract of best solution's output
+        #champions.append(state[perm[0]].detach().clone().cpu().squeeze(0).numpy()) # keeping tract of best solution's output
         best_grns.append(pop[perm[0]].detach().clone().cpu()) # keeping tract of best solution
         #run.log({'champions': state[perm[0]].detach().clone().cpu().squeeze(0).numpy()}, commit=False)
         #run.log({'best_grns': pop[perm[0]].detach().clone().cpu()}, commit=False)
@@ -226,18 +288,31 @@ def evolutionary_algorithm(args, title, folder):
         diversities.append(d)
         run.log({'diversities': d}, commit=True)
 
+        previous_targ=curr_targ
         if gen % args.season_len == args.season_len - 1: # flip target
             curr_targ = (curr_targ + 1) % 2
+            #print(time_since_change)
+            time_since_change = 0
+            epoc += 1
 
     stats = {}
     stats["max_fits"] = max_fits
     stats["ave_fits"] = ave_fits
+    stats["st_div_fits"] = st_div_fits
     stats["ave_complex"] = ave_complex
-    stats["champions"] = champions
+    stats["delta_fit_envchange"] = delta_fit_envchange
+    stats["delta_fit_envchange_max"] = delta_fit_envchange_max
+    stats["rebound_time"] = rebound_time
+    stats["rebound_time_max"] = rebound_time_max
     stats["max_ages"] = max_ages
     stats["ave_ages"] = ave_ages
     stats["best_grns"] = best_grns
     stats["diversities"] = diversities
+    stats["low"] = low
+    stats["spec_A"] = spec_A
+    stats["spec_B"] = spec_B
+    stats["gen"] = gen
+
     with open(f"{folder}/basic_{title}.pkl", "wb") as f:
         pickle.dump(stats, f)
 
@@ -266,6 +341,8 @@ if __name__ == "__main__":
     args.max_age = 100000000000
     #parser.add_argument('-season_len', type=int, default=100, help="number of generations between environmental flips")
     args.season_len = 100000000000
+    #parser.add_argument('-selection_size', type=float, default=1, help="what proportion of the population to test for strategy (specialist, generatist)")
+    args.selection_size = 0.1
     #parser.add_argument('-proj', type=str, default="EC_final_project", help="Name of the project (for wandb)")
     args.proj = "phd_chapt_3"
     #parser.add_argument('-exp_type', type=str, default="BASIC", help="Name your experiment for grouping")
@@ -293,9 +370,9 @@ if __name__ == "__main__":
 
     args.num_crossover = int(args.crossover_freq * args.pop_size) #how many individuals will be involved in crossover
 
-    assert (
-        args.num_crossover % 2 == 0
-    ), f"Error: select different crossover_freq: received {args.num_crossover}"
+    #assert (
+        #args.num_crossover % 2 == 0
+    #), f"Error: select different crossover_freq: received {args.num_crossover}"
     assert (
         args.pop_size % args.truncation_size == 0
     ), "Error: select different trunction_prop, received {args.pops_size}"

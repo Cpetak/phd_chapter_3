@@ -22,16 +22,18 @@ Optimal phenotypes: 2 random distributions.
 ### Does evolvability evolve? Measure by:
 
 - *fitness decrease when env changes*
-- num gens needed to regain prev fitness 
-  - due to new muts or standing genetic variation
-  - classify everyone as specialist A or B or neither or generalist
+- *num gens needed to regain prev fitness - best fitness and average fitness*
+- *due to new muts or standing genetic variation? well, if we see the best improve - new mut, if just average improves - standing likely*
+- *classify everyone as specialist A or B or neither or generalist*
+- interesting that apart from the begining the number of "low" is very low, even after env change. is it just because I am sampling after selection? whould this be the case looking after mutation phase?
 
 
 ### What kind of networks evolve? Measure by:
 
-- distribution of weight values
-- robustness (expression and fitness)
-- modularity
+- *distribution of weight values # calc retrospectively, save best network each gen*
+- which weights large 
+- robustness # calc retrospectively, save best network each gen
+- modularity # calc retrospectively, save best network each gen
 
 ### Variables to test:
 
