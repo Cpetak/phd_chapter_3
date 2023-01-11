@@ -53,7 +53,7 @@ def prepare_run(entity, project, args, folder_name="results"):
 
 def calc_strategy(phenotypes, envs, args, curr_targ):
     perm = torch.randperm(phenotypes.size(0))
-    idx = perm[:args.selection_size*args.pop_size]
+    idx = perm[:int(args.selection_size*args.pop_size)]
     sample = phenotypes[idx]
 
     spec_A = 0
@@ -71,15 +71,15 @@ def calc_strategy(phenotypes, envs, args, curr_targ):
 
     for i in range(len(first_fitness)):
         if (first_fitness[i] < 0.3 and second_fitness[i] < 0.3) or (0.3 <= first_fitness[i] <= 0.7 and second_fitness[i] < 0.3) or (first_fitness[i] < 0.3 and 0.3 <=second_fitness[i] <= 0.7):
-        low += 1
+          low += 1
         #if (first_fitness[i] > 0.7 and second_fitness[i] > 0.7) or (0.3 <= first_fitness[i] <= 0.7 and second_fitness[i] > 0.7) or (first_fitness[i] > 0.7 and 0.3 <=second_fitness[i] <= 0.7):
         #high += 1
         if (first_fitness[i] < 0.3 and second_fitness[i] > 0.7):
-        spec_B += 1
+          spec_B += 1
         if (first_fitness[i] > 0.7 and second_fitness[i] < 0.3):
-        spec_A += 1
+          spec_A += 1
         if 0.3 <= first_fitness[i] <= 0.7 and 0.3 <= second_fitness[i] <= 0.7:
-        gen += 1
+          gen += 1
 
     run.log({'low': low}, commit=False)
     #run.log({'high': high}, commit=False) #impossible
@@ -120,7 +120,7 @@ def evolutionary_algorithm(args, title, folder):
     low = []
     spec_A = []
     spec_B = []
-    gen = []
+    genal = []
 
     delta_fit_envchange_max = []
     delta_fit_envchange = []
@@ -205,7 +205,7 @@ def evolutionary_algorithm(args, title, folder):
         low.append(l)
         spec_A.append(sA)
         spec_B.append(sB)
-        gen.append(g)
+        genal.append(g)
 
         # Selection
         perm = torch.argsort(fitnesses, descending=True)
@@ -311,7 +311,7 @@ def evolutionary_algorithm(args, title, folder):
     stats["low"] = low
     stats["spec_A"] = spec_A
     stats["spec_B"] = spec_B
-    stats["gen"] = gen
+    stats["gen"] = genal
 
     with open(f"{folder}/basic_{title}.pkl", "wb") as f:
         pickle.dump(stats, f)
@@ -340,7 +340,7 @@ if __name__ == "__main__":
     #parser.add_argument('-max_age', type=int, default=30, help="max age at which individual is replaced by its kid")
     args.max_age = 100000000000
     #parser.add_argument('-season_len', type=int, default=100, help="number of generations between environmental flips")
-    args.season_len = 100000000000
+    args.season_len = 20
     #parser.add_argument('-selection_size', type=float, default=1, help="what proportion of the population to test for strategy (specialist, generatist)")
     args.selection_size = 0.1
     #parser.add_argument('-proj', type=str, default="EC_final_project", help="Name of the project (for wandb)")
