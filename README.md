@@ -37,14 +37,28 @@ Optimal phenotypes: 2 random distributions.
 
 ### Variables to test:
 
-- *Mut rates (introduce new ones?)*
-- *Alpha*
-- *Number of updates to network (max_iter)*
-- *Pop size*
-- *Frequency of env change*
-- *max age*
-- *network size*
-- *selection pressure (truncation_size)*
+Note: 5000 gens, 1000 pop_size with tracking, setting up, changing, and everything: time to run: ~12 min
+
+Plan: run 1 with longer num gens -> if nothing interesting after 5000 -> repeat 4 times until 5000
+
+Lapos figures, if decreased alpha more boring patterns
+
+increasing alpha increasing convergence time plot
+
+values of best solution phenotypes over time - why complexity decreases when averaging strategy emerges (is this true, check first), causation or correlation
+
+Make optimal phenotype 000011111, 111110000 for better visualisation
+
+time_to_rebound 0 non0 0 non0 0 non0 because spec_B is harder to learn because you are not starting from 50% fitness but from the opposite target - hence B has to catch up hence no rebound after env switch from A
+
+- Frequency of env change [20,100,500] WIP
+- Mut rates (introduce new ones?)
+- Alpha (1,10,50)
+- Number of updates to network (max_iter) (what if no network)
+- Pop size
+- max age
+- network size
+- selection pressure (truncation_size)
 
 ### To change after if there is time:
 
