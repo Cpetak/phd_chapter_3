@@ -12,7 +12,7 @@ import wandb
 from datetime import date
 from pathlib import Path
 
-device="cuda"
+device = "cuda" if torch.cuda.is_available() else "cpu" #for testing on my computer
 
 #Helper functions
 
