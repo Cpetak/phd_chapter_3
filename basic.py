@@ -340,7 +340,7 @@ if __name__ == "__main__":
     #parser.add_argument('-max_age', type=int, default=30, help="max age at which individual is replaced by its kid")
     args.max_age = 1000000000000000
     #parser.add_argument('-season_len', type=int, default=100, help="number of generations between environmental flips")
-    args.season_len = 20
+    args.season_len = 500
     #parser.add_argument('-selection_size', type=float, default=1, help="what proportion of the population to test for strategy (specialist, generatist)")
     args.selection_size = 0.2
     #parser.add_argument('-proj', type=str, default="EC_final_project", help="Name of the project (for wandb)")
