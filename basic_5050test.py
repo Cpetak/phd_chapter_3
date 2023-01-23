@@ -92,6 +92,27 @@ def calc_strategy(phenotypes, envs, args, curr_targ):
 
     return(low,spec_A,spec_B,gen)
 
+def get_phenotypes(args, pop, num_indv, complexities, if_comp):
+  state = torch.zeros(num_indv, 1, args["grn_size"]).to(device)
+  state[:, :, 0] = 1.0 # create input to the GRNs
+
+  state_before = torch.zeros(num_indv, 1, args["grn_size"]).to(device) # keeping track of the last state
+  for l in range(args["max_iter"]):
+    state = torch.matmul(state, pop) # each matrix in the population is multiplied
+    state = state * args["alpha"]
+    state = torch.sigmoid(state) # after which it is put in a sigmoid function to get the output, by default alpha = 1 which is pretty flat, so let's use alpha > 1 (wagner uses infinite) hence the above multiplication
+    # state = dround(state, 2)
+    diffs=torch.abs(state_before - state).sum(axis=(1,2))
+    which_repeat = torch.where(diffs == 0)
+    if if_comp:
+      complexities[which_repeat] += 1
+    state_before = state
+
+  if if_comp:
+    return state, complexities
+  else:
+    return state
+
 # Evolve
 def evolutionary_algorithm(args, title, folder):
 
@@ -134,22 +155,11 @@ def evolutionary_algorithm(args, title, folder):
     for gen in trange(args.num_generations):
 
         time_since_change += 1
-        complexities = torch.zeros(args.pop_size)
 
         # Generating phenotypes
-        state = torch.zeros(args.pop_size, 1, args.grn_size).to(device)
-        state[:, :, 0] = 1.0 # create input to the GRNs
+        complexities = torch.zeros(args.pop_size)
 
-        state_before = torch.zeros(args.pop_size, 1, args.grn_size).to(device) # keeping track of the last state
-        for l in range(args.max_iter):
-          state = torch.matmul(state, pop) # each matrix in the population is multiplied
-          state = state * args.alpha
-          state = torch.sigmoid(state) # after which it is put in a sigmoid function to get the output, by default alpha = 1 which is pretty flat, so let's use alpha > 1 (wagner uses infinite) hence the above multiplication
-          # state = dround(state, 2)
-          diffs=torch.abs(state_before - state).sum(axis=(1,2))
-          which_repeat = torch.where(diffs == 0)
-          complexities[which_repeat] += 1
-          state_before = state
+        state, complexities=get_phenotypes(args, pop, args["pop_size"], complexities, if_comp= True)
 
         ave_complex.append(args.max_iter-complexities.mean().item()) # 0 = never converged, the higher the number the earlier it converged so true "complexity" is inverse of this value
         run.log({'average_complexity': args.max_iter-complexities.mean().item()}, commit=False)
@@ -173,10 +183,48 @@ def evolutionary_algorithm(args, title, folder):
   
 
         # Evaluate fitnesses
-        fitnesses = fitness_function(phenos, targs[curr_targ])
-        cheaters = torch.where(complexities == 0) # non-convergers
-        #fitnesses[cheaters] = 0 # 0 fitness for non-converging ?? complexity part of fitness function, or fitness function computed thorughout the different states ??
+        # ALTERNATIVE FITNESS FUNCTION
+        fits = []
+        num_clones=20 #the clones are done in parallel
+        for grn in pop: # I need to this in parallel too
+          #make num_clones kids
+          clones = grn.repeat([num_clones, 1, 1]) # create copies of parents
+          #print(grn)
+          #print(clones)
 
+          # Mutate clones
+          num_genes_mutate = int(args["grn_size"]*args["grn_size"]*len(clones) * args["mut_rate"])
+          mylist = torch.zeros(args["grn_size"]*args["grn_size"]*len(clones), device=device)
+          mylist[:num_genes_mutate] = 1
+          shuffled_idx = torch.randperm(args["grn_size"]*args["grn_size"]*len(clones), device=device)
+          mask = mylist[shuffled_idx].reshape(len(clones),args["grn_size"],args["grn_size"]) #select genes to mutate
+          clones = clones + (clones*mask)*torch.randn(size=clones.shape, device=device) * args["mut_size"]  # mutate only children only at certain genes
+          
+          # Get clone phenotypes
+          clone_states=get_phenotypes(args, clones, num_clones, complexities, if_comp= False)
+          clone_phenos = clone_states[:,:,:num_genes_fit]
+
+          # Get clone fitnesses
+          clone_fitnesses0=fitness_function(clone_phenos, targs[0])
+          clone_fitnesses1=fitness_function(clone_phenos, targs[1])
+          clone_fitnesses0=clone_fitnesses0/ (int(args["num_genes_consider"]*args["grn_size"])) # rescale to 0-1
+          clone_fitnesses1=clone_fitnesses1/ (int(args["num_genes_consider"]*args["grn_size"]))
+          
+          prop_fit0=sum(torch.gt(clone_fitnesses0, 0.7)).item()/num_clones
+          prop_fit1=sum(torch.gt(clone_fitnesses1, 0.7)).item()/num_clones
+
+          diffs=abs(prop_fit0-prop_fit1) #should be 0 if they are the same
+          
+          fit_of_grn=(1-diffs) + prop_fit0 + prop_fit1 # fitness is highest (2) if one prop is 0.5, other is 0.5. Lowest fitness is 1.
+          # A spec 0.1, B spec 0.1 is just as bad as A spec 0.9, B spec 0.1. (1.2). 0.2 and 0.2 is better (1.4)
+
+          fits.append(fit_of_grn)
+
+        temp_fits=torch.Tensor(fits).to(device)
+        temp_fits2=fitness_function(phenos, targs[curr_targ])
+        temp_fits2=temp_fits2/ (int(args["num_genes_consider"]*args["grn_size"]))
+        fitnesses=torch.add(temp_fits, temp_fits2)
+        
         # TRACKING reduction in fitness right after env change
         if previous_targ!=curr_targ:
           delta_fit_envchange.append((fitnesses.mean().item())/(ave_fits[-1]))
