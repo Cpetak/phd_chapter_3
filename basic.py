@@ -21,8 +21,8 @@ def to_im(ten):
 
 
 def dround(ten, digits):
-    a = 10 ^ digits
-    return torch.round(ten * a) / a
+  a = 10 ^ digits
+  return torch.round(ten * a) / a
 
 
 def fitness_function(pop, targ):
@@ -162,8 +162,21 @@ def evolutionary_algorithm(args, title, folder):
         ave_complex.append(args.max_iter-complexities.mean().item()) # 0 = never converged, the higher the number the earlier it converged so true "complexity" is inverse of this value
         run.log({'average_complexity': args.max_iter-complexities.mean().item()}, commit=False)
 
-        # Evaluate fitnesses
         phenos = state[:,:,:num_genes_fit]
+
+        #diversity among siblings of the same parent, from the previous generation
+        if gen > 0:
+          child_phenotypes = phenos[children_locs]
+          reshaped=torch.reshape(child_phenotypes, (num_child, len(parent_locs), args["grn_size"]))
+          stds=torch.std(reshaped,dim=(0))
+
+          #print(stds.mean(1)) #for each group of siblings, mean standard deviation across the genes
+          #print(stds.mean(1).mean()) #mean standard deviation across the sibling groups
+
+          run.log({'std_of_children': stds.mean(1).mean().item()}, commit=False)
+  
+
+        # Evaluate fitnesses
         fitnesses = fitness_function(phenos, targs[curr_targ])
         cheaters = torch.where(complexities == 0) # non-convergers
         #fitnesses[cheaters] = 0 # 0 fitness for non-converging ?? complexity part of fitness function, or fitness function computed thorughout the different states ??
