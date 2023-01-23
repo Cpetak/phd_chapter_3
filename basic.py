@@ -121,6 +121,7 @@ def evolutionary_algorithm(args, title, folder):
     spec_A = []
     spec_B = []
     genal = []
+    kid_stds = []
 
     delta_fit_envchange_max = []
     delta_fit_envchange = []
@@ -128,20 +129,11 @@ def evolutionary_algorithm(args, title, folder):
     rebound_time_max = torch.zeros(int(args.num_generations/args.season_len)).to(device)
 
     best_grns = []
-    #champions = []
 
-    # create all possible masks for 2-point crossover
-    #if args.crossover == "twopoint":
-        #idxs = np.array(list(combinations(range(0, args.grn_size+1),2)))
-        #masks = torch.zeros(len(idxs),args.grn_size,args.grn_size, device="cuda")
-        #for i,(start,end) in enumerate(idxs):
-          #masks[i,:,start:end] = 1
-        #antimasks = 1 - masks
-
+    # Main for loop
     for gen in trange(args.num_generations):
 
         time_since_change += 1
-
         complexities = torch.zeros(args.pop_size)
 
         # Generating phenotypes
@@ -164,7 +156,7 @@ def evolutionary_algorithm(args, title, folder):
 
         phenos = state[:,:,:num_genes_fit]
 
-        #diversity among siblings of the same parent, from the previous generation
+        # TRACKING diversity among siblings of the same parent, from the previous generation
         if gen > 0:
           child_phenotypes = phenos[children_locs]
           reshaped=torch.reshape(child_phenotypes, (num_child, len(parent_locs), args["grn_size"]))
@@ -174,6 +166,7 @@ def evolutionary_algorithm(args, title, folder):
           #print(stds.mean(1).mean()) #mean standard deviation across the sibling groups
 
           run.log({'std_of_children': stds.mean(1).mean().item()}, commit=False)
+          kid_stds.append(stds.mean(1).mean().item())
   
 
         # Evaluate fitnesses
@@ -181,13 +174,14 @@ def evolutionary_algorithm(args, title, folder):
         cheaters = torch.where(complexities == 0) # non-convergers
         #fitnesses[cheaters] = 0 # 0 fitness for non-converging ?? complexity part of fitness function, or fitness function computed thorughout the different states ??
 
-        if previous_targ!=curr_targ: # checking reduction in fitness right after env change
+        # TRACKING reduction in fitness right after env change
+        if previous_targ!=curr_targ:
           delta_fit_envchange.append((fitnesses.mean().item())/(ave_fits[-1]))
           run.log({'delta_fit_envchange': (fitnesses.mean().item())/(ave_fits[-1])}, commit=False)
           delta_fit_envchange_max.append((fitnesses.max().item())/(max_fits[-1]))
           run.log({'delta_fit_envchange_max': (fitnesses.max().item())/(max_fits[-1])}, commit=False)
 
-        #print(epoc)
+        # TRACKING fitness redound time after env change
         if epoc != 0: # if it is not the first epoc
           if rebound_time[epoc] == 0: # if for this epoc, fitness rebound hasn't happened yet
             if ave_fits[(-1*time_since_change)] <= fitnesses.mean().item(): # if fitness rebounded this generation
@@ -202,7 +196,12 @@ def evolutionary_algorithm(args, title, folder):
               # if reound_time is 0 somewhere, that means that previous good fitness wasn't found in this epoc.
               # if there is a 0 right after, that means that the new "max" (final fitness before env change) was also not recovered.
               # note the shift in frame of reference
-          if time_since_change == args.season_len:
+          if time_since_change == args.season_len: # if this is the end of the epoc (i.e. last gen in this season)
+            if rebound_time[epoc] == 0: # if it didn't rebound in the epoc, change 0 to something big = never found previous fitness
+              rebound_time[epoc] = args.season_len*2
+            if rebound_time_max[epoc] == 0: 
+              rebound_time_max[epoc] = args.season_len*2
+
             run.log({'rebound_time': rebound_time[epoc]}, commit=False)
             run.log({'rebound_time_max': rebound_time_max[epoc]}, commit=False)
 
@@ -213,14 +212,13 @@ def evolutionary_algorithm(args, title, folder):
         run.log({'ave_fits': fitnesses.mean().item()}, commit=False)
         run.log({'st_div_fits': fitnesses.std().item()}, commit=False)
 
-        #if gen == (args.num_generations - 1):
         l,sA,sB,g=calc_strategy(phenos, targs, args, curr_targ)
         low.append(l)
         spec_A.append(sA)
         spec_B.append(sB)
         genal.append(g)
 
-        # Selection
+        # SELECTION
         perm = torch.argsort(fitnesses, descending=True)
         parent_locs = perm[:args.truncation_size] # location of top x parents in the array of individuals
         children_locs = perm[args.truncation_size:] # location of individuals that won't survive and hence will be replaced by others' children
@@ -237,7 +235,7 @@ def evolutionary_algorithm(args, title, folder):
         num_child = int(args.pop_size/args.truncation_size) - 1
         children = parents.repeat([num_child, 1, 1]) # create copies of parents
 
-        # Mutation
+        # MUTATION
         num_genes_mutate = int(args.grn_size*args.grn_size*len(children) * args.mut_rate)
         mylist = torch.zeros(args.grn_size*args.grn_size*len(children), device="cuda")
         mylist[:num_genes_mutate] = 1
@@ -246,51 +244,6 @@ def evolutionary_algorithm(args, title, folder):
         children = children + (children*mask)*torch.randn(size=children.shape, device="cuda") * args.mut_size  # mutate only children only at certain genes
 
         pop[children_locs] = children # put children into population
-
-        # Crossover, between kids (concenptually the same as if I first did the crossover, then the mutation), otherwise same as basic model! parents can crossover too...
-        if args.crossover != "NO":
-            cpairs=torch.randperm(args.pop_size, device="cuda")[:args.num_crossover] #create kid pairs, num_crossover has to be divisibale by 2
-
-            if args.crossover == "twopoint":
-                random_mask_pos = torch.randperm(len(masks))[:int(args.num_crossover/2)] #get a random set of masks
-                mymasks=masks[random_mask_pos]
-                myantimasks=antimasks[random_mask_pos]
-
-            if args.crossover == "uniform":
-                all_col = torch.arange(args.grn_size, device="cuda")
-                y=all_col.repeat(int(args.num_crossover/2),1)
-                indices = torch.argsort(torch.rand(*y.shape), dim=-1)
-                result = y[torch.arange(y.shape[0]).unsqueeze(-1), indices] #create random permutation of column orders
-
-                mymasks = torch.where(result>args.grn_size/2, 0, 1) #make it into a 2D mask
-                mymasks=mymasks.repeat(1,args.grn_size).reshape(int(args.num_crossover/2),args.grn_size,args.grn_size)
-                myantimasks = torch.where(result<=args.grn_size/2, 0, 1) #make inverse into a 2D mask
-                myantimasks=myantimasks.repeat(1,args.grn_size).reshape(int(args.num_crossover/2),args.grn_size,args.grn_size)
-
-            n1=pop[cpairs[int(len(cpairs)/2):]] * mymasks + pop[cpairs[:int(len(cpairs)/2)]] * myantimasks # first cpair/2 individuals in cpairs, after crossover
-            n2=pop[cpairs[:int(len(cpairs)/2)]] * mymasks + pop[cpairs[int(len(cpairs)/2):]] * myantimasks # second cpair/2 individuals in cpairs, after crossover
-            all_pop=torch.arange(args.pop_size, device="cuda")
-            not_crossed = [i for i in all_pop if i not in cpairs] # plus the individuals left out of crossover!!
-            not_crossed_mats = pop[torch.stack(not_crossed,0)]
-            new_pop = torch.cat((n1, n2, not_crossed_mats), 0)
-            pop=new_pop
-
-        # Dying due to old age
-        old_locs = torch.where(ages >= args.max_age) # get location of old individuals
-
-        if len(old_locs[0]) != 0:
-          ages[old_locs] = 0 #reset age
-
-          old_inds = pop[old_locs] # get old individuals' matrices
-
-          num_genes_mutate = int(args.grn_size*args.grn_size*len(old_inds) * args.mut_rate)
-          mylist = torch.zeros(args.grn_size*args.grn_size*len(old_inds), device="cuda")
-          mylist[:num_genes_mutate] = 1
-          shuffled_idx = torch.randperm(args.grn_size*args.grn_size*len(old_inds), device="cuda")
-          mask = mylist[shuffled_idx].reshape(len(old_inds),args.grn_size,args.grn_size) #select genes to mutate
-          old_inds = old_inds + (old_inds*mask)*torch.randn(size=old_inds.shape, device="cuda") * args.mut_size
-
-          pop[old_locs] = old_inds # mutate old individual -> new child
 
         max_ages.append(ages.max().item())
         ave_ages.append(ages.mean().item())
@@ -301,6 +254,7 @@ def evolutionary_algorithm(args, title, folder):
         diversities.append(d)
         run.log({'diversities': d}, commit=True)
 
+        # CHANGE ENVIRONMENT
         previous_targ=curr_targ
         if gen % args.season_len == args.season_len - 1: # flip target
             curr_targ = (curr_targ + 1) % 2
@@ -308,6 +262,7 @@ def evolutionary_algorithm(args, title, folder):
             time_since_change = 0
             epoc += 1
 
+    # SAVE DATA
     stats = {}
     stats["max_fits"] = max_fits
     stats["ave_fits"] = ave_fits
@@ -325,6 +280,7 @@ def evolutionary_algorithm(args, title, folder):
     stats["spec_A"] = spec_A
     stats["spec_B"] = spec_B
     stats["gen"] = genal
+    stats["kid_stds"] = kid_stds
 
     with open(f"{folder}/{title}.pkl", "wb") as f:
         pickle.dump(stats, f)
@@ -395,14 +351,3 @@ if __name__ == "__main__":
 
     evolutionary_algorithm(args, f"{args.exp_type}", folder)
 
-    #for num_genes_consider in [0.2, 0.5, 0.8]:
-    #for season_len in [50, 100, 500]:
-        #args = deepcopy(defaults)
-        #args.season_len = season_len
-        #print(args)
-        #evolutionary_algorithm(args, f"{season_len}_{rep}_", folder)
-    #for max_age in [0, 30, 100000000000]:
-        #args = deepcopy(defaults)
-        #args.max_age = max_age
-        #print(args)
-        #evolutionary_algorithm(args, f"{max_age}_{rep}_", folder)
