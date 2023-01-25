@@ -119,10 +119,14 @@ def evolutionary_algorithm(args, title, folder):
     #Setting up
 
     pop = torch.randn((args.pop_size, args.grn_size, args.grn_size)).to(device) # create population of random GRNs
-    targ = torch.randint(2, size=(1, args.grn_size)).to(device) # create a random target, binary (for better visualisation)
     num_genes_fit=int(args.num_genes_consider*args.grn_size)
-    targ = targ[:,:num_genes_fit] # create targets only for relevant genes
-    targs = [targ, 1 - targ.detach().clone()] # alternative target is the exact opposite
+
+    ones=torch.ones(1,int(num_genes_fit/2)).to(device)
+    zeros=torch.zeros(1,int(num_genes_fit/2)).to(device)
+    targA=torch.cat((ones,zeros),1)
+    targB=torch.cat((zeros,ones),1)
+    targs = [targA,targB]
+
     curr_targ = 0 # ID of which target is the current one
     previous_targ=curr_targ # will be used for measuring evolvability
     ages = torch.zeros(args.pop_size).to(device)
@@ -184,24 +188,29 @@ def evolutionary_algorithm(args, title, folder):
 
         # Evaluate fitnesses
         # ALTERNATIVE FITNESS FUNCTION
-        fits = []
-        num_clones=20 #the clones are done in parallel
-        for grn in pop: # I need to this in parallel too
-          #make num_clones kids
-          clones = grn.repeat([num_clones, 1, 1]) # create copies of parents
-          #print(grn)
-          #print(clones)
 
+        num_clones=20
+
+        c_genotypes = []
+        c_phenotypes = []
+        c_fits0 = []
+        c_fits1 = []
+        
+        for c in range(num_clones): 
+          
+          # Make clones
+          clones = pop.clone() # create one clone of each individual in the population
+          
           # Mutate clones
           num_genes_mutate = int(args["grn_size"]*args["grn_size"]*len(clones) * args["mut_rate"])
-          mylist = torch.zeros(args["grn_size"]*args["grn_size"]*len(clones), device=device)
+          mylist = torch.zeros(args["grn_size"]*args["grn_size"]*len(clones), device="cuda")
           mylist[:num_genes_mutate] = 1
-          shuffled_idx = torch.randperm(args["grn_size"]*args["grn_size"]*len(clones), device=device)
+          shuffled_idx = torch.randperm(args["grn_size"]*args["grn_size"]*len(clones), device="cuda")
           mask = mylist[shuffled_idx].reshape(len(clones),args["grn_size"],args["grn_size"]) #select genes to mutate
-          clones = clones + (clones*mask)*torch.randn(size=clones.shape, device=device) * args["mut_size"]  # mutate only children only at certain genes
-          
+          clones = clones + (clones*mask)*torch.randn(size=clones.shape, device="cuda") * args["mut_size"]  # mutate only at certain genes
+
           # Get clone phenotypes
-          clone_states=get_phenotypes(args, clones, num_clones, complexities, if_comp= False)
+          clone_states = get_phenotypes(args, clones, args["pop_size"], complexities, if_comp= False)
           clone_phenos = clone_states[:,:,:num_genes_fit]
 
           # Get clone fitnesses
@@ -209,21 +218,25 @@ def evolutionary_algorithm(args, title, folder):
           clone_fitnesses1=fitness_function(clone_phenos, targs[1])
           clone_fitnesses0=clone_fitnesses0/ (int(args["num_genes_consider"]*args["grn_size"])) # rescale to 0-1
           clone_fitnesses1=clone_fitnesses1/ (int(args["num_genes_consider"]*args["grn_size"]))
-          
-          prop_fit0=sum(torch.gt(clone_fitnesses0, 0.7)).item()/num_clones
-          prop_fit1=sum(torch.gt(clone_fitnesses1, 0.7)).item()/num_clones
 
-          diffs=abs(prop_fit0-prop_fit1) #should be 0 if they are the same
-          
-          fit_of_grn=(1-diffs) + prop_fit0 + prop_fit1 # fitness is highest (2) if one prop is 0.5, other is 0.5. Lowest fitness is 1.
-          # A spec 0.1, B spec 0.1 is just as bad as A spec 0.9, B spec 0.1. (1.2). 0.2 and 0.2 is better (1.4)
+          # Save results
+          c_genotypes.append(clones)
+          c_phenotypes.append(clone_phenos)
+          c_fits0.append(clone_fitnesses0)
+          c_fits1.append(clone_fitnesses1)
+                
+        c_genotypes = torch.stack(c_genotypes)
+        c_phenotypes = torch.stack(c_phenotypes)
+        c_fits0 = torch.stack(c_fits0)
+        c_fits1 = torch.stack(c_fits1)
 
-          fits.append(fit_of_grn)
+        mean0= torch.mean(c_fits0,0) # for each individual, averaged across the clones
+        mean1= torch.mean(c_fits1,0)
+        diffs= 1-abs(mean0-mean1) #should be 0 if they are the same
 
-        temp_fits=torch.Tensor(fits).to(device)
-        temp_fits2=fitness_function(phenos, targs[curr_targ])
-        temp_fits2=temp_fits2/ (int(args["num_genes_consider"]*args["grn_size"]))
-        fitnesses=torch.add(temp_fits, temp_fits2)
+        temp_fits = fitness_function(phenos, targs[curr_targ]) 
+        temp_fits = temp_fits / (int(args["num_genes_consider"]*args["grn_size"]))
+        fitnesses = temp_fits * diffs
         
         # TRACKING reduction in fitness right after env change
         if previous_targ!=curr_targ:
