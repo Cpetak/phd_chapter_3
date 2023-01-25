@@ -161,7 +161,7 @@ def evolutionary_algorithm(args, title, folder):
         time_since_change += 1
 
         # Generating phenotypes
-        complexities = torch.zeros(args.pop_size)
+        complexities = torch.zeros(args.pop_size).to(device)
         state, complexities=get_phenotypes(args, pop, args.pop_size, complexities, if_comp= True)
         ave_complex.append(args.max_iter-complexities.mean().item()) # 0 = never converged, the higher the number the earlier it converged so true "complexity" is inverse of this value
         run.log({'average_complexity': args.max_iter-complexities.mean().item()}, commit=False)
