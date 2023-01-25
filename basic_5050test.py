@@ -162,9 +162,7 @@ def evolutionary_algorithm(args, title, folder):
 
         # Generating phenotypes
         complexities = torch.zeros(args.pop_size)
-
         state, complexities=get_phenotypes(args, pop, args["pop_size"], complexities, if_comp= True)
-
         ave_complex.append(args.max_iter-complexities.mean().item()) # 0 = never converged, the higher the number the earlier it converged so true "complexity" is inverse of this value
         run.log({'average_complexity': args.max_iter-complexities.mean().item()}, commit=False)
 
@@ -175,16 +173,8 @@ def evolutionary_algorithm(args, title, folder):
           child_phenotypes = phenos[children_locs]
           reshaped=torch.reshape(child_phenotypes, (num_child, len(parent_locs), args["grn_size"]))
           stds=torch.std(reshaped,dim=(0))
-
-          #print(stds.mean(1)) #for each group of siblings, mean standard deviation across the genes
-          #print(stds.mean(1).mean()) #mean standard deviation across the sibling groups
-
-          #mylist=[[[0, 1]], [[0, 1]], [[0, 1]], [[1, 0]],[[1, 0]], [[1, 0]]] # 0.7071 is the max std then
-          #test=torch.Tensor(mylist).to('cuda')
-
           run.log({'std_of_children': stds.mean(1).mean().item()}, commit=False)
           kid_stds.append(stds.mean(1).mean().item())
-  
 
         # Evaluate fitnesses
         # ALTERNATIVE FITNESS FUNCTION
@@ -193,8 +183,6 @@ def evolutionary_algorithm(args, title, folder):
 
         c_genotypes = []
         c_phenotypes = []
-        c_fits0 = []
-        c_fits1 = []
         
         for c in range(num_clones): 
           
@@ -213,30 +201,48 @@ def evolutionary_algorithm(args, title, folder):
           clone_states = get_phenotypes(args, clones, args["pop_size"], complexities, if_comp= False)
           clone_phenos = clone_states[:,:,:num_genes_fit]
 
-          # Get clone fitnesses
-          clone_fitnesses0=fitness_function(clone_phenos, targs[0])
-          clone_fitnesses1=fitness_function(clone_phenos, targs[1])
-          clone_fitnesses0=clone_fitnesses0/ (int(args["num_genes_consider"]*args["grn_size"])) # rescale to 0-1
-          clone_fitnesses1=clone_fitnesses1/ (int(args["num_genes_consider"]*args["grn_size"]))
-
           # Save results
           c_genotypes.append(clones)
           c_phenotypes.append(clone_phenos)
-          c_fits0.append(clone_fitnesses0)
-          c_fits1.append(clone_fitnesses1)
-                
+
         c_genotypes = torch.stack(c_genotypes)
         c_phenotypes = torch.stack(c_phenotypes)
-        c_fits0 = torch.stack(c_fits0)
-        c_fits1 = torch.stack(c_fits1)
 
-        mean0= torch.mean(c_fits0,0) # for each individual, averaged across the clones
-        mean1= torch.mean(c_fits1,0)
-        diffs= 1-abs(mean0-mean1) #should be 0 if they are the same
-
-        temp_fits = fitness_function(phenos, targs[curr_targ]) 
-        temp_fits = temp_fits / (int(args["num_genes_consider"]*args["grn_size"]))
-        fitnesses = temp_fits * diffs
+        # Calculate fitness from phenotypes of clones
+        c_phenotypes=torch.squeeze(c_phenotypes)
+        tops=c_phenotypes[: , :  , :int(num_genes_fit/2)].sum(axis=-1, keepdims=True)
+        bots=c_phenotypes[: , :  , int(num_genes_fit/2):].sum(axis=-1, keepdims=True)
+        
+        across_envs=abs(tops-bots).sum(axis=0) # sum of differences across clones between top and bottom half (i.e. envs). we want this to be high! we want the tops and bots to be different
+        across_clones=abs(tops.sum(axis=0) - bots.sum(axis=0)) # for each individual, difference between tops and bots across the clones. you want this to be low
+        across_envs=across_envs/(int(num_genes_fit/2)*num_clones) # number of genes/2 times number of clones
+        across_clones=1-(across_clones/(int(num_genes_fit/2)*num_clones)) # number of genes/2 times number of clones, also the lower the better so let's flip
+       
+        newfitnesses=across_envs + across_clones
+        fitnesses=torch.squeeze(newfitnesses)
+                
+        """ #scenario 1
+        ones=torch.ones(1,4)
+        zeros=torch.zeros(1,4)
+        indA=torch.cat((ones,zeros))
+        indB=torch.cat((zeros,ones))
+        temp1=torch.cat((indA, indB),1)
+        temp2=torch.cat((indB, indA),1)
+        test1=torch.stack((temp1,temp2, temp1, temp2))
+        #scenario 2
+        ones=torch.ones(1,2)
+        zeros=torch.zeros(1,2)
+        indA=torch.cat((ones,zeros, ones, zeros),1)
+        indB=torch.cat((zeros,ones))
+        temp=torch.cat((indA, indA),0)
+        test2=torch.stack((temp,temp, temp, temp))
+        #scenario 3
+        ones=torch.ones(1,4)
+        zeros=torch.zeros(1,4)
+        indA=torch.cat((ones,zeros))
+        indB=torch.cat((zeros,ones))
+        temp=torch.cat((indA, indB),1)
+        test3=torch.stack((temp,temp, temp, temp)) #4 clones, 2 individuals, 8 grn length """
         
         # TRACKING reduction in fitness right after env change
         if previous_targ!=curr_targ:
@@ -373,13 +379,13 @@ if __name__ == "__main__":
     #parser.add_argument('-max_age', type=int, default=30, help="max age at which individual is replaced by its kid")
     args.max_age = 1000000000000000
     #parser.add_argument('-season_len', type=int, default=100, help="number of generations between environmental flips")
-    args.season_len = 500
+    args.season_len = 20
     #parser.add_argument('-selection_size', type=float, default=1, help="what proportion of the population to test for strategy (specialist, generatist)")
     args.selection_size = 0.2
     #parser.add_argument('-proj', type=str, default="EC_final_project", help="Name of the project (for wandb)")
     args.proj = "phd_chapt_3"
     #parser.add_argument('-exp_type', type=str, default="BASIC", help="Name your experiment for grouping")
-    args.exp_type = "season_length_20"
+    args.exp_type = "testing"
 
     #parser.add_argument('-crossover', type=str, default="NO", help="Options: NO, uniform, twopoint")
     args.crossover = "NO"
@@ -409,6 +415,7 @@ if __name__ == "__main__":
     assert (
         args.pop_size % args.truncation_size == 0
     ), "Error: select different trunction_prop, received {args.pops_size}"
+    assert ( int(args["num_genes_consider"]*args["grn_size"]) % 2 == 0), "Error: select different num_genes_consider, needs to be a multiple of 2"
 
 
     run, folder = prepare_run("molanu", args.proj, args)
