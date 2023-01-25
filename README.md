@@ -26,20 +26,24 @@ Optimal phenotypes: 2 random distributions.
 - *due to new muts or standing genetic variation? well, if we see the best improve - new mut, if just average improves - standing likely*
 - *classify everyone as specialist A or B or neither or generalist*
 - interesting that apart from the begining the number of "low" is very low, even after env change. is it just because I am sampling after selection? whould this be the case looking after mutation phase?
+- <u>std among phenotypes of children of same parent</u> 
 
 
 ### What kind of networks evolve? Measure by:
 
 - *distribution of weight values # calc retrospectively, save best network each gen*
 - which weights large 
-- robustness # calc retrospectively, save best network each gen
-- modularity # calc retrospectively, save best network each gen
+- <u>phenotypes over time</u>
+- <u>robustness</u> # calc retrospectively, save best network each gen
+- <u>modularity</u> # calc retrospectively, save best network each gen
 
 ### Variables to test:
 
 Note: 5000 gens, 1000 pop_size with tracking, setting up, changing, and everything: time to run: ~12 min
 
 Plan: run 1 with longer num gens -> if nothing interesting after 5000 -> repeat 4 times until 5000
+
+Will need to run for more gens if season length longer to be able to compare!
 
 Lapos figures, if decreased alpha more boring patterns
 
