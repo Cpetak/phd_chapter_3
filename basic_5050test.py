@@ -93,13 +93,13 @@ def calc_strategy(phenotypes, envs, args, curr_targ):
     return(low,spec_A,spec_B,gen)
 
 def get_phenotypes(args, pop, num_indv, complexities, if_comp):
-  state = torch.zeros(num_indv, 1, args["grn_size"]).to(device)
+  state = torch.zeros(num_indv, 1, args.grn_size).to(device)
   state[:, :, 0] = 1.0 # create input to the GRNs
 
-  state_before = torch.zeros(num_indv, 1, args["grn_size"]).to(device) # keeping track of the last state
-  for l in range(args["max_iter"]):
+  state_before = torch.zeros(num_indv, 1, args.grn_size).to(device) # keeping track of the last state
+  for l in range(args.max_iter):
     state = torch.matmul(state, pop) # each matrix in the population is multiplied
-    state = state * args["alpha"]
+    state = state * args.alpha
     state = torch.sigmoid(state) # after which it is put in a sigmoid function to get the output, by default alpha = 1 which is pretty flat, so let's use alpha > 1 (wagner uses infinite) hence the above multiplication
     # state = dround(state, 2)
     diffs=torch.abs(state_before - state).sum(axis=(1,2))
@@ -162,7 +162,7 @@ def evolutionary_algorithm(args, title, folder):
 
         # Generating phenotypes
         complexities = torch.zeros(args.pop_size)
-        state, complexities=get_phenotypes(args, pop, args["pop_size"], complexities, if_comp= True)
+        state, complexities=get_phenotypes(args, pop, args.pop_size, complexities, if_comp= True)
         ave_complex.append(args.max_iter-complexities.mean().item()) # 0 = never converged, the higher the number the earlier it converged so true "complexity" is inverse of this value
         run.log({'average_complexity': args.max_iter-complexities.mean().item()}, commit=False)
 
@@ -171,7 +171,7 @@ def evolutionary_algorithm(args, title, folder):
         # TRACKING diversity among siblings of the same parent, from the previous generation
         if gen > 0:
           child_phenotypes = phenos[children_locs]
-          reshaped=torch.reshape(child_phenotypes, (num_child, len(parent_locs), args["grn_size"]))
+          reshaped=torch.reshape(child_phenotypes, (num_child, len(parent_locs), args.grn_size))
           stds=torch.std(reshaped,dim=(0))
           run.log({'std_of_children': stds.mean(1).mean().item()}, commit=False)
           kid_stds.append(stds.mean(1).mean().item())
@@ -190,15 +190,15 @@ def evolutionary_algorithm(args, title, folder):
           clones = pop.clone() # create one clone of each individual in the population
           
           # Mutate clones
-          num_genes_mutate = int(args["grn_size"]*args["grn_size"]*len(clones) * args["mut_rate"])
-          mylist = torch.zeros(args["grn_size"]*args["grn_size"]*len(clones), device="cuda")
+          num_genes_mutate = int(args.grn_size*args.grn_size*len(clones) * args.mut_rate)
+          mylist = torch.zeros(args.grn_size*args.grn_size*len(clones), device="cuda")
           mylist[:num_genes_mutate] = 1
-          shuffled_idx = torch.randperm(args["grn_size"]*args["grn_size"]*len(clones), device="cuda")
-          mask = mylist[shuffled_idx].reshape(len(clones),args["grn_size"],args["grn_size"]) #select genes to mutate
-          clones = clones + (clones*mask)*torch.randn(size=clones.shape, device="cuda") * args["mut_size"]  # mutate only at certain genes
+          shuffled_idx = torch.randperm(args.grn_size*args.grn_size*len(clones), device="cuda")
+          mask = mylist[shuffled_idx].reshape(len(clones),args.grn_size,args.grn_size) #select genes to mutate
+          clones = clones + (clones*mask)*torch.randn(size=clones.shape, device="cuda") * args.mut_size  # mutate only at certain genes
 
           # Get clone phenotypes
-          clone_states = get_phenotypes(args, clones, args["pop_size"], complexities, if_comp= False)
+          clone_states = get_phenotypes(args, clones, args.pop_size, complexities, if_comp= False)
           clone_phenos = clone_states[:,:,:num_genes_fit]
 
           # Save results
@@ -415,7 +415,7 @@ if __name__ == "__main__":
     assert (
         args.pop_size % args.truncation_size == 0
     ), "Error: select different trunction_prop, received {args.pops_size}"
-    assert ( int(args["num_genes_consider"]*args["grn_size"]) % 2 == 0), "Error: select different num_genes_consider, needs to be a multiple of 2"
+    assert ( int(args.num_genes_consider*args.grn_size) % 2 == 0), "Error: select different num_genes_consider, needs to be a multiple of 2"
 
 
     run, folder = prepare_run("molanu", args.proj, args)
