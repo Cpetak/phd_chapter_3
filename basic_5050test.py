@@ -218,7 +218,7 @@ def evolutionary_algorithm(args, title, folder):
         across_envs=across_envs/(int(num_genes_fit/2)*num_clones) # number of genes/2 times number of clones
         across_clones=1-(across_clones/(int(num_genes_fit/2)*num_clones)) # number of genes/2 times number of clones, also the lower the better so let's flip
        
-        newfitnesses=across_envs + across_clones
+        newfitnesses=across_envs + across_clones - 1
         fitnesses=torch.squeeze(newfitnesses)
                 
         """ #scenario 1
