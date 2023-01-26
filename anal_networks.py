@@ -91,18 +91,7 @@ clones = clones + (clones*mask)*torch.randn(size=clones.shape, device=device) * 
 clone_states=get_phenotypes(args, clones, num_clones, complexities, if_comp= False)
 clone_phenos = clone_states[:,:,:num_genes_fit]
         
-#c_genotypes = torch.stack(c_genotypes)
-#c_phenotypes = torch.stack(c_phenotypes)
-
-# Calculate fitness from phenotypes of clones
-#c_phenotypes=torch.squeeze(c_phenotypes)
-#tops=c_phenotypes[: , :  , :int(num_genes_fit/2)].sum(axis=-1, keepdims=True)
-#bots=c_phenotypes[: , :  , int(num_genes_fit/2):].sum(axis=-1, keepdims=True)
-
-clones.size()
-
-torch.squeeze(clone_phenos).size()
-
+# visualise all final phenotypes of clones
 fig = plt.figure()
 ax = fig.add_subplot(111)
 cax = ax.matshow(torch.squeeze(clone_phenos).cpu())
@@ -129,11 +118,13 @@ def get_internal_states(grn):
   states=torch.flatten(states,start_dim=1)
   return states
 
+# Internal states of best grn
 fig = plt.figure(figsize=(8, 8))
 ax = fig.add_subplot(111)
 cax = ax.matshow(get_internal_states(data["best_grns"][-1]).cpu()[:50,:])
 fig.colorbar(cax)
 
+# Difference between internal states of parents and a clone
 fig = plt.figure(figsize=(8, 8))
 ax = fig.add_subplot(111)
 cax = ax.matshow(get_internal_states(data["best_grns"][-1]).cpu()[:50,:]-get_internal_states(clones[2]).cpu()[:50,:])
@@ -142,11 +133,7 @@ fig.colorbar(cax)
 disagreement = get_internal_states(data["best_grns"][-1]).cpu()[:50,:]-get_internal_states(clones[2]).cpu()[:50,:]
 plt.plot(disagreement.abs().sum(axis=1))
 
-fig = plt.figure(figsize=(8, 8))
-ax = fig.add_subplot(111)
-cax = ax.matshow(get_internal_states(clones[2]).cpu()[:50,:])
-fig.colorbar(cax)
-
+# Internal states of all clones
 fig,axs = plt.subplots(nrows=5,ncols=4, figsize=(10,12))
 for i,ax in enumerate(axs.flatten()):
   start = get_internal_states(clones[i]).cpu()[:50,:]
@@ -157,8 +144,6 @@ for i,ax in enumerate(axs.flatten()):
 plt.tight_layout()
 plt.subplots_adjust(hspace=0.05,wspace=0.05)
 plt.show()
-
-
 
 fig,axs = plt.subplots(nrows=20,ncols=1, figsize=(10,12))
 for i,ax in enumerate(axs.flatten()):
