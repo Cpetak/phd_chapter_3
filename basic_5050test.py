@@ -51,9 +51,9 @@ def prepare_run(entity, project, args, folder_name="results"):
 
     return run, folder
 
-def calc_strategy(phenotypes, envs, args, curr_targ):
+def calc_strategy(phenotypes, selection_size, envs, args, curr_targ):
     perm = torch.randperm(phenotypes.size(0))
-    idx = perm[:int(args.selection_size*args.pop_size)]
+    idx = perm[:selection_size]
     sample = phenotypes[idx]
 
     spec_A = 0
@@ -191,11 +191,11 @@ def evolutionary_algorithm(args, title, folder):
           
           # Mutate clones
           num_genes_mutate = int(args.grn_size*args.grn_size*len(clones) * args.mut_rate)
-          mylist = torch.zeros(args.grn_size*args.grn_size*len(clones), device="cuda")
+          mylist = torch.zeros(args.grn_size*args.grn_size*len(clones), device=device)
           mylist[:num_genes_mutate] = 1
-          shuffled_idx = torch.randperm(args.grn_size*args.grn_size*len(clones), device="cuda")
+          shuffled_idx = torch.randperm(args.grn_size*args.grn_size*len(clones), device=device)
           mask = mylist[shuffled_idx].reshape(len(clones),args.grn_size,args.grn_size) #select genes to mutate
-          clones = clones + (clones*mask)*torch.randn(size=clones.shape, device="cuda") * args.mut_size  # mutate only at certain genes
+          clones = clones + (clones*mask)*torch.randn(size=clones.shape, device=device) * args.mut_size  # mutate only at certain genes
 
           # Get clone phenotypes
           clone_states = get_phenotypes(args, clones, args.pop_size, complexities, if_comp= False)
@@ -282,7 +282,8 @@ def evolutionary_algorithm(args, title, folder):
         run.log({'ave_fits': fitnesses.mean().item()}, commit=False)
         run.log({'st_div_fits': fitnesses.std().item()}, commit=False)
 
-        l,sA,sB,g=calc_strategy(phenos, targs, args, curr_targ)
+        selection_size=int(args.pop_size*args.selection_prop)
+        l,sA,sB,g=calc_strategy(phenos, selection_size, targs, args, curr_targ)
         low.append(l)
         spec_A.append(sA)
         spec_B.append(sB)
@@ -381,7 +382,7 @@ if __name__ == "__main__":
     #parser.add_argument('-season_len', type=int, default=100, help="number of generations between environmental flips")
     args.season_len = 20
     #parser.add_argument('-selection_size', type=float, default=1, help="what proportion of the population to test for strategy (specialist, generatist)")
-    args.selection_size = 0.2
+    args.selection_prop = 0.1
     #parser.add_argument('-proj', type=str, default="EC_final_project", help="Name of the project (for wandb)")
     args.proj = "phd_chapt_3"
     #parser.add_argument('-exp_type', type=str, default="BASIC", help="Name your experiment for grouping")
