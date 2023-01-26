@@ -220,29 +220,6 @@ def evolutionary_algorithm(args, title, folder):
        
         newfitnesses=across_envs + across_clones - 1
         fitnesses=torch.squeeze(newfitnesses)
-                
-        """ #scenario 1
-        ones=torch.ones(1,4)
-        zeros=torch.zeros(1,4)
-        indA=torch.cat((ones,zeros))
-        indB=torch.cat((zeros,ones))
-        temp1=torch.cat((indA, indB),1)
-        temp2=torch.cat((indB, indA),1)
-        test1=torch.stack((temp1,temp2, temp1, temp2))
-        #scenario 2
-        ones=torch.ones(1,2)
-        zeros=torch.zeros(1,2)
-        indA=torch.cat((ones,zeros, ones, zeros),1)
-        indB=torch.cat((zeros,ones))
-        temp=torch.cat((indA, indA),0)
-        test2=torch.stack((temp,temp, temp, temp))
-        #scenario 3
-        ones=torch.ones(1,4)
-        zeros=torch.zeros(1,4)
-        indA=torch.cat((ones,zeros))
-        indB=torch.cat((zeros,ones))
-        temp=torch.cat((indA, indB),1)
-        test3=torch.stack((temp,temp, temp, temp)) #4 clones, 2 individuals, 8 grn length """
         
         # TRACKING reduction in fitness right after env change
         if previous_targ!=curr_targ:
@@ -352,6 +329,7 @@ def evolutionary_algorithm(args, title, folder):
     stats["spec_B"] = spec_B
     stats["gen"] = genal
     stats["kid_stds"] = kid_stds
+    stats["args_used"] = args
 
     with open(f"{folder}/{title}.pkl", "wb") as f:
         pickle.dump(stats, f)
