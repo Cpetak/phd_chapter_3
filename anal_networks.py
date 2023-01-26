@@ -23,13 +23,13 @@ class FakeArgs:
         return "\n".join([f"{k}: {v}" for k, v in attrs.items()])
 
 def get_phenotypes(args, pop, num_indv, complexities, if_comp):
-  state = torch.zeros(num_indv, 1, args["grn_size"]).to(device)
+  state = torch.zeros(num_indv, 1, args.grn_size).to(device)
   state[:, :, 0] = 1.0 # create input to the GRNs
 
-  state_before = torch.zeros(num_indv, 1, args["grn_size"]).to(device) # keeping track of the last state
-  for l in range(args["max_iter"]):
+  state_before = torch.zeros(num_indv, 1, args.grn_size).to(device) # keeping track of the last state
+  for l in range(args.max_iter):
     state = torch.matmul(state, pop) # each matrix in the population is multiplied
-    state = state * args["alpha"]
+    state = state * args.alpha
     state = torch.sigmoid(state) # after which it is put in a sigmoid function to get the output, by default alpha = 1 which is pretty flat, so let's use alpha > 1 (wagner uses infinite) hence the above multiplication
     # state = dround(state, 2)
     diffs=torch.abs(state_before - state).sum(axis=(1,2))
@@ -80,12 +80,12 @@ num_genes_fit = int(args.num_genes_consider*args.grn_size)
 clones = data["best_grns"][-1].to(device).repeat([num_clones, 1, 1]) # create copies of parents
 
 # Mutate clones
-num_genes_mutate = int(args["grn_size"]*args["grn_size"]*len(clones) * args["mut_rate"])
-mylist = torch.zeros(args["grn_size"]*args["grn_size"]*len(clones), device=device)
+num_genes_mutate = int(args.grn_size*args.grn_size*len(clones) * args.mut_rate)
+mylist = torch.zeros(args.grn_size*args.grn_size*len(clones), device=device)
 mylist[:num_genes_mutate] = 1
-shuffled_idx = torch.randperm(args["grn_size"]*args["grn_size"]*len(clones), device=device)
-mask = mylist[shuffled_idx].reshape(len(clones),args["grn_size"],args["grn_size"]) #select genes to mutate
-clones = clones + (clones*mask)*torch.randn(size=clones.shape, device=device) * args["mut_size"]  # mutate only children only at certain genes
+shuffled_idx = torch.randperm(args.grn_size*args.grn_size*len(clones), device=device)
+mask = mylist[shuffled_idx].reshape(len(clones),args.grn_size,args.grn_size) #select genes to mutate
+clones = clones + (clones*mask)*torch.randn(size=clones.shape, device=device) * args.mut_size  # mutate only children only at certain genes
 
 # Get clone phenotypes
 clone_states=get_phenotypes(args, clones, num_clones, complexities, if_comp= False)
@@ -111,14 +111,14 @@ fig.colorbar(cax)
 def get_internal_states(grn):
   grn=grn.to(device)
   states=[]
-  state = torch.zeros(1, 1, args["grn_size"]).to(device)
+  state = torch.zeros(1, 1, args.grn_size).to(device)
   state[:, :, 0] = 1.0 # create input to the GRNs
 
-  state_before = torch.zeros(1, 1, args["grn_size"]).to(device) # keeping track of the last state
-  for l in range(args["max_iter"]):
+  state_before = torch.zeros(1, 1, args.grn_size).to(device) # keeping track of the last state
+  for l in range(args.max_iter):
     states.append(state)
     state = torch.matmul(state, grn) # each matrix in the population is multiplied
-    state = state * args["alpha"]
+    state = state * args.alpha
     state = torch.sigmoid(state) # after which it is put in a sigmoid function to get the output, by default alpha = 1 which is pretty flat, so let's use alpha > 1 (wagner uses infinite) hence the above multiplication
     # state = dround(state, 2)
     diffs=torch.abs(state_before - state).sum(axis=(1,2))
