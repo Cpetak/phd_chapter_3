@@ -342,7 +342,7 @@ if __name__ == "__main__":
     #parser.add_argument('-grn_size', type=int, default=50, help="GRN size") # number of genes in the GRN
     args.grn_size = 50
     #parser.add_argument('-pop_size', type=int, default=1000, help="Population size")
-    args.pop_size = 1000
+    args.pop_size = 12
     #parser.add_argument('-alpha', type=int, default=10, help="Alpha for sigmoid function")
     args.alpha = 10
     #parser.add_argument('-num_genes_consider', type=float, default=0.5, help="proportion of genes considered for fitness")
@@ -352,7 +352,7 @@ if __name__ == "__main__":
     #parser.add_argument('-mut_size', type=float, default=0.5, help="size of mutation")
     args.mut_size = 0.5
     #parser.add_argument('-num_generations', type=int, default=100000, help="number of generations to run the experiment for") # number of generations
-    args.num_generations = 5000
+    args.num_generations = 2
     #parser.add_argument('-truncation_prop', type=float, default=0.2, help="proportion of individuals selected for reproduction")
     args.truncation_prop = 0.2
     #parser.add_argument('-max_age', type=int, default=30, help="max age at which individual is replaced by its kid")

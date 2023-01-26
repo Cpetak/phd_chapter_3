@@ -3,8 +3,24 @@ import seaborn as sns
 import pickle
 import torch
 
+
 device = "cuda" if torch.cuda.is_available() else "cpu" #for testing on my computer
 
+class CPU_Unpickler(pickle.Unpickler):
+    import io
+    def find_class(self, module, name):
+        if module == 'torch.storage' and name == '_load_from_bytes':
+            return lambda b: torch.load(io.BytesIO(b), map_location='cpu')
+        else: return super().find_class(module, name)
+
+class FakeArgs:
+    """
+    A simple class imitating the args namespace
+    """
+
+    def __repr__(self):
+        attrs = vars(self)
+        return "\n".join([f"{k}: {v}" for k, v in attrs.items()])
 
 def get_phenotypes(args, pop, num_indv, complexities, if_comp):
   state = torch.zeros(num_indv, 1, args["grn_size"]).to(device)
@@ -30,10 +46,12 @@ def get_phenotypes(args, pop, num_indv, complexities, if_comp):
 # open a file, where you stored the pickled data
 #file = open('results/fresh-frost-6/basic_place_holder_title.pkl', 'rb')
 #file = open('results/sweet-peony-128/basic_place_holder_title.pkl', 'rb')
-file = open('dancing_fireworks.pkl', 'rb')
+#file = open('dancing_fireworks.pkl', 'rb') 
+file = open('results/bright-moon-137/testing.pkl', 'rb')
 
 # dump information to that file
-data = pickle.load(file)
+#data = pickle.load(file)
+data = CPU_Unpickler(file).load()
 args = data["args_used"] #arguments used in this experiment
 
 # plot weight distribution

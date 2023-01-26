@@ -1,3 +1,4 @@
 results/
 wandb/
+slurm_outs
 slurm-*
