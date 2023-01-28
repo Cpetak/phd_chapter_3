@@ -90,20 +90,4 @@ Change seasons every x generations.
 
 Default parameters:
 
-grn_size: 50
-pop_size: 1000
-alpha: 10
-num_genes_consider: 1
-mut_rate: 0.1
-mut_size: 0.5
-num_generations: 500
-truncation_prop: 0.2
-max_age: 100000000000
-season_len: 100000000000
-proj: phd_chapt_3
-exp_type: testing
-crossover: NO
-crossover_freq: 0.5
-adaptive_mut: False
-meta_mut_rate: 0.01
-max_iter: 150
+

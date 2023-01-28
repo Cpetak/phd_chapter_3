@@ -331,33 +331,20 @@ if __name__ == "__main__":
 
     args = FakeArgs()
 
+    # DONT CHANGE FOR FIRST ROUND
+
     #parser.add_argument('-grn_size', type=int, default=50, help="GRN size") # number of genes in the GRN
     args.grn_size = 50
     #parser.add_argument('-pop_size', type=int, default=1000, help="Population size")
-    args.pop_size = 12
+    args.pop_size = 1000
     #parser.add_argument('-alpha', type=int, default=10, help="Alpha for sigmoid function")
     args.alpha = 10
     #parser.add_argument('-num_genes_consider', type=float, default=0.5, help="proportion of genes considered for fitness")
     args.num_genes_consider = 1
-    #parser.add_argument('-mut_rate', type=float, default=0.1, help="rate of mutation (i.e. number of genes to mutate)")
-    args.mut_rate = 0.1
-    #parser.add_argument('-mut_size', type=float, default=0.5, help="size of mutation")
-    args.mut_size = 0.5
-    #parser.add_argument('-num_generations', type=int, default=100000, help="number of generations to run the experiment for") # number of generations
-    args.num_generations = 2
-    #parser.add_argument('-truncation_prop', type=float, default=0.2, help="proportion of individuals selected for reproduction")
-    args.truncation_prop = 0.2
     #parser.add_argument('-max_age', type=int, default=30, help="max age at which individual is replaced by its kid")
     args.max_age = 1000000000000000
-    #parser.add_argument('-season_len', type=int, default=100, help="number of generations between environmental flips")
-    args.season_len = 20
-    #parser.add_argument('-selection_size', type=float, default=1, help="what proportion of the population to test for strategy (specialist, generatist)")
-    args.selection_prop = 0.1
     #parser.add_argument('-proj', type=str, default="EC_final_project", help="Name of the project (for wandb)")
     args.proj = "phd_chapt_3"
-    #parser.add_argument('-exp_type', type=str, default="BASIC", help="Name your experiment for grouping")
-    args.exp_type = "testing"
-
     #parser.add_argument('-crossover', type=str, default="NO", help="Options: NO, uniform, twopoint")
     args.crossover = "NO"
     #parser.add_argument('-crossover_freq', type=float, default=0.5, help="number of individuals that will undergo crossover")
@@ -366,13 +353,31 @@ if __name__ == "__main__":
     args.adaptive_mut = False
     #parser.add_argument('-meta_mut_rate', type=float, default=0.01, help="how much you increase or decrease mut_size and mut_rate")
     args.meta_mut_rate = 0.01
+    
+    
+    # DO CHANGE
+    #parser.add_argument('-mut_rate', type=float, default=0.1, help="rate of mutation (i.e. number of genes to mutate)")
+    args.mut_rate = 0.1
+    #parser.add_argument('-mut_size', type=float, default=0.5, help="size of mutation")
+    args.mut_size = 0.5
+    #parser.add_argument('-num_generations', type=int, default=100000, help="number of generations to run the experiment for") # number of generations
+    args.num_generations = 2
+    #parser.add_argument('-truncation_prop', type=float, default=0.2, help="proportion of individuals selected for reproduction")
+    args.truncation_prop = 0.2
+    #parser.add_argument('-season_len', type=int, default=100, help="number of generations between environmental flips")
+    args.season_len = 20
+    #parser.add_argument('-selection_size', type=float, default=1, help="what proportion of the population to test for strategy (specialist, generatist)")
+    args.selection_prop = 0.1
+    #parser.add_argument('-exp_type', type=str, default="BASIC", help="Name your experiment for grouping")
+    args.exp_type = "basic_"
+    
 
     #args = parser.parse_args()
 
     print("running code")
 
     args.max_iter = 100 #int(3*args.grn_size) # "Maximum number of GRN updates") # number of times gene concentrations are updated to get phenotype
-
+   
     args.truncation_size=int(args.truncation_prop*args.pop_size)
 
 
