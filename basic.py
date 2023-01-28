@@ -26,7 +26,7 @@ def dround(ten, digits):
 
 
 def fitness_function(pop, targ):
-    return (1 - torch.abs(pop.squeeze(1) - targ)).sum(axis=1) # the smaller the difference, the higher the fitness
+    return (1 - torch.abs(pop.squeeze(1) - targ)).sum(axis=1) /pop.size()[-1] # the smaller the difference, the higher the fitness
 
 class FakeArgs:
     """
@@ -38,10 +38,6 @@ class FakeArgs:
         return "\n".join([f"{k}: {v}" for k, v in attrs.items()])
 
 def prepare_run(entity, project, args, folder_name="results"):
-    import wandb
-
-    #folder = get_folder()
-    #args.location = get_location()
 
     run = wandb.init(config=args, entity=entity, project=project)
 
@@ -64,10 +60,7 @@ def calc_strategy(phenotypes, selection_size, envs, args, curr_targ):
 
     first_fitness = fitness_function(sample, envs[0]) #env A
     #curr_targ = (curr_targ + 1) % 2
-    second_fitness = fitness_function(sample, envs[1]) #env B
-
-    first_fitness = first_fitness / (int(args.num_genes_consider*args.grn_size))
-    second_fitness = second_fitness / (int(args.num_genes_consider*args.grn_size))
+    second_fitness = 1-first_fitness #fitness_function(sample, envs[1]) #env B
 
     for i in range(len(first_fitness)):
         if (first_fitness[i] < 0.3 and second_fitness[i] < 0.3) or (0.3 <= first_fitness[i] <= 0.7 and second_fitness[i] < 0.3) or (first_fitness[i] < 0.3 and 0.3 <=second_fitness[i] <= 0.7):
@@ -317,7 +310,7 @@ if __name__ == "__main__":
     #parser.add_argument('-season_len', type=int, default=100, help="number of generations between environmental flips")
     args.season_len = 500
     #parser.add_argument('-selection_size', type=float, default=1, help="what proportion of the population to test for strategy (specialist, generatist)")
-    args.selection_size = 0.2
+    args.selection_prop = 0.1
     #parser.add_argument('-proj', type=str, default="EC_final_project", help="Name of the project (for wandb)")
     args.proj = "phd_chapt_3"
     #parser.add_argument('-exp_type', type=str, default="BASIC", help="Name your experiment for grouping")
@@ -336,7 +329,7 @@ if __name__ == "__main__":
 
     print("running code")
 
-    args.max_iter = int(3*args.grn_size) # "Maximum number of GRN updates") # number of times gene concentrations are updated to get phenotype
+    args.max_iter = 100 #int(3*args.grn_size) # "Maximum number of GRN updates") # number of times gene concentrations are updated to get phenotype
 
     args.truncation_size=int(args.truncation_prop*args.pop_size)
 
