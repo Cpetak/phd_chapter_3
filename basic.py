@@ -319,7 +319,7 @@ if __name__ == "__main__":
     #parser.add_argument('-mut_size', type=float, default=0.5, help="size of mutation")
     args.mut_size = 0.5
     #parser.add_argument('-num_generations', type=int, default=100000, help="number of generations to run the experiment for") # number of generations
-    args.num_generations = 2
+    args.num_generations = 1500
     #parser.add_argument('-truncation_prop', type=float, default=0.2, help="proportion of individuals selected for reproduction")
     args.truncation_prop = 0.2
     #parser.add_argument('-season_len', type=int, default=100, help="number of generations between environmental flips")
@@ -327,7 +327,7 @@ if __name__ == "__main__":
     #parser.add_argument('-selection_size', type=float, default=1, help="what proportion of the population to test for strategy (specialist, generatist)")
     args.selection_prop = 0.1
     #parser.add_argument('-exp_type', type=str, default="BASIC", help="Name your experiment for grouping")
-    args.exp_type = "basic_"
+    args.exp_type = "basic_sl_20"
     
 
     #args = parser.parse_args()
