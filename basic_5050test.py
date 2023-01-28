@@ -120,7 +120,6 @@ def evolutionary_algorithm(args, title, folder):
 
     pop = torch.randn((args.pop_size, args.grn_size, args.grn_size)).to(device) # create population of random GRNs
     num_genes_fit=int(args.num_genes_consider*args.grn_size)
-
     ones=torch.ones(1,int(num_genes_fit/2)).to(device)
     zeros=torch.zeros(1,int(num_genes_fit/2)).to(device)
     targA=torch.cat((ones,zeros),1)
@@ -395,7 +394,6 @@ if __name__ == "__main__":
         args.pop_size % args.truncation_size == 0
     ), "Error: select different trunction_prop, received {args.pops_size}"
     assert ( int(args.num_genes_consider*args.grn_size) % 2 == 0), "Error: select different num_genes_consider, needs to be a multiple of 2"
-
 
     run, folder = prepare_run("molanu", args.proj, args)
 

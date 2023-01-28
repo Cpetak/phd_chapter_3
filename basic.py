@@ -51,9 +51,9 @@ def prepare_run(entity, project, args, folder_name="results"):
 
     return run, folder
 
-def calc_strategy(phenotypes, envs, args, curr_targ):
+def calc_strategy(phenotypes, selection_size, envs, args, curr_targ):
     perm = torch.randperm(phenotypes.size(0))
-    idx = perm[:int(args.selection_size*args.pop_size)]
+    idx = perm[:selection_size]
     sample = phenotypes[idx]
 
     spec_A = 0
@@ -92,16 +92,40 @@ def calc_strategy(phenotypes, envs, args, curr_targ):
 
     return(low,spec_A,spec_B,gen)
 
+def get_phenotypes(args, pop, num_indv, complexities, if_comp):
+  state = torch.zeros(num_indv, 1, args.grn_size).to(device)
+  state[:, :, 0] = 1.0 # create input to the GRNs
+
+  state_before = torch.zeros(num_indv, 1, args.grn_size).to(device) # keeping track of the last state
+  for l in range(args.max_iter):
+    state = torch.matmul(state, pop) # each matrix in the population is multiplied
+    state = state * args.alpha
+    state = torch.sigmoid(state) # after which it is put in a sigmoid function to get the output, by default alpha = 1 which is pretty flat, so let's use alpha > 1 (wagner uses infinite) hence the above multiplication
+    # state = dround(state, 2)
+    diffs=torch.abs(state_before - state).sum(axis=(1,2))
+    which_repeat = torch.where(diffs == 0)
+    if if_comp:
+      complexities[which_repeat] += 1
+    state_before = state
+
+  if if_comp:
+    return state, complexities
+  else:
+    return state
+
 # Evolve
 def evolutionary_algorithm(args, title, folder):
 
     #Setting up
 
     pop = torch.randn((args.pop_size, args.grn_size, args.grn_size)).to(device) # create population of random GRNs
-    targ = torch.randint(2, size=(1, args.grn_size)).to(device) # create a random target, binary (for better visualisation)
     num_genes_fit=int(args.num_genes_consider*args.grn_size)
-    targ = targ[:,:num_genes_fit] # create targets only for relevant genes
-    targs = [targ, 1 - targ.detach().clone()] # alternative target is the exact opposite
+    ones=torch.ones(1,int(num_genes_fit/2)).to(device)
+    zeros=torch.zeros(1,int(num_genes_fit/2)).to(device)
+    targA=torch.cat((ones,zeros),1)
+    targB=torch.cat((zeros,ones),1)
+    targs = [targA,targB]
+    
     curr_targ = 0 # ID of which target is the current one
     previous_targ=curr_targ # will be used for measuring evolvability
     ages = torch.zeros(args.pop_size).to(device)
@@ -134,23 +158,10 @@ def evolutionary_algorithm(args, title, folder):
     for gen in trange(args.num_generations):
 
         time_since_change += 1
-        complexities = torch.zeros(args.pop_size)
 
         # Generating phenotypes
-        state = torch.zeros(args.pop_size, 1, args.grn_size).to(device)
-        state[:, :, 0] = 1.0 # create input to the GRNs
-
-        state_before = torch.zeros(args.pop_size, 1, args.grn_size).to(device) # keeping track of the last state
-        for l in range(args.max_iter):
-          state = torch.matmul(state, pop) # each matrix in the population is multiplied
-          state = state * args.alpha
-          state = torch.sigmoid(state) # after which it is put in a sigmoid function to get the output, by default alpha = 1 which is pretty flat, so let's use alpha > 1 (wagner uses infinite) hence the above multiplication
-          # state = dround(state, 2)
-          diffs=torch.abs(state_before - state).sum(axis=(1,2))
-          which_repeat = torch.where(diffs == 0)
-          complexities[which_repeat] += 1
-          state_before = state
-
+        complexities = torch.zeros(args.pop_size).to(device)
+        state, complexities=get_phenotypes(args, pop, args.pop_size, complexities, if_comp= True)
         ave_complex.append(args.max_iter-complexities.mean().item()) # 0 = never converged, the higher the number the earlier it converged so true "complexity" is inverse of this value
         run.log({'average_complexity': args.max_iter-complexities.mean().item()}, commit=False)
 
@@ -159,23 +170,13 @@ def evolutionary_algorithm(args, title, folder):
         # TRACKING diversity among siblings of the same parent, from the previous generation
         if gen > 0:
           child_phenotypes = phenos[children_locs]
-          reshaped=torch.reshape(child_phenotypes, (num_child, len(parent_locs), args["grn_size"]))
+          reshaped=torch.reshape(child_phenotypes, (num_child, len(parent_locs), args.grn_size))
           stds=torch.std(reshaped,dim=(0))
-
-          #print(stds.mean(1)) #for each group of siblings, mean standard deviation across the genes
-          #print(stds.mean(1).mean()) #mean standard deviation across the sibling groups
-
-          #mylist=[[[0, 1]], [[0, 1]], [[0, 1]], [[1, 0]],[[1, 0]], [[1, 0]]] # 0.7071 is the max std then
-          #test=torch.Tensor(mylist).to('cuda')
-
           run.log({'std_of_children': stds.mean(1).mean().item()}, commit=False)
           kid_stds.append(stds.mean(1).mean().item())
-  
 
-        # Evaluate fitnesses
+        # Evaluate fitnesses 
         fitnesses = fitness_function(phenos, targs[curr_targ])
-        cheaters = torch.where(complexities == 0) # non-convergers
-        #fitnesses[cheaters] = 0 # 0 fitness for non-converging ?? complexity part of fitness function, or fitness function computed thorughout the different states ??
 
         # TRACKING reduction in fitness right after env change
         if previous_targ!=curr_targ:
@@ -215,7 +216,8 @@ def evolutionary_algorithm(args, title, folder):
         run.log({'ave_fits': fitnesses.mean().item()}, commit=False)
         run.log({'st_div_fits': fitnesses.std().item()}, commit=False)
 
-        l,sA,sB,g=calc_strategy(phenos, targs, args, curr_targ)
+        selection_size=int(args.pop_size*args.selection_prop)
+        l,sA,sB,g=calc_strategy(phenos, selection_size, targs, args, curr_targ)
         low.append(l)
         spec_A.append(sA)
         spec_B.append(sB)
@@ -284,6 +286,7 @@ def evolutionary_algorithm(args, title, folder):
     stats["spec_B"] = spec_B
     stats["gen"] = genal
     stats["kid_stds"] = kid_stds
+    stats["args_used"] = args
 
     with open(f"{folder}/{title}.pkl", "wb") as f:
         pickle.dump(stats, f)
@@ -348,7 +351,7 @@ if __name__ == "__main__":
     assert (
         args.pop_size % args.truncation_size == 0
     ), "Error: select different trunction_prop, received {args.pops_size}"
-
+    assert ( int(args.num_genes_consider*args.grn_size) % 2 == 0), "Error: select different num_genes_consider, needs to be a multiple of 2"
 
     run, folder = prepare_run("molanu", args.proj, args)
 
