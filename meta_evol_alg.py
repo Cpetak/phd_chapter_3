@@ -3,6 +3,7 @@ from tqdm import trange
 import numpy as np
 from numba import njit, prange
 import matplotlib.pyplot as plt
+import math
 
 device = "cuda" if torch.cuda.is_available() else "cpu" #for testing on my computer
 
@@ -28,6 +29,22 @@ class FakeArgs:
     def __repr__(self):
         attrs = vars(self)
         return "\n".join([f"{k}: {v}" for k, v in attrs.items()])
+
+def epi(x):
+  # nonlinear mapping from fitness calculated by distance to optima
+  # to fitness that influences reproduction
+  # 0 in 0 out and 1 in 1 out but 0.5 in 0.18 out!
+  mmax=0.5
+  mmin=-0.5
+  k=3
+
+  x=x-mmax
+  a=(mmax+mmax)/(math.e**(mmax*k) - math.e**(mmin*k))
+  b=mmin-a*math.e**(mmin*k)
+
+  y=a*math.e**(k*x) + b
+
+  return y + mmax
 
 def get_phenotypes(args, pop, num_indv):
   state = torch.zeros(num_indv, 1, args.grn_size).to(device)
