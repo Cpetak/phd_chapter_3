@@ -28,15 +28,6 @@ def dround(ten, digits):
 def fitness_function(pop, targ):
     return (1 - torch.abs(pop.squeeze(1) - targ)).sum(axis=1) /pop.size()[-1] # the smaller the difference, the higher the fitness
 
-class FakeArgs:
-    """
-    A simple class imitating the args namespace
-    """
-
-    def __repr__(self):
-        attrs = vars(self)
-        return "\n".join([f"{k}: {v}" for k, v in attrs.items()])
-
 def prepare_run(entity, project, args, folder_name="results"):
 
     run = wandb.init(config=args, entity=entity, project=project)
@@ -285,52 +276,37 @@ def evolutionary_algorithm(args, title, folder):
         pickle.dump(stats, f)
 
 if __name__ == "__main__":
-    #parser = argparse.ArgumentParser()
+    parser = argparse.ArgumentParser()
 
-    args = FakeArgs()
 
     # DONT CHANGE FOR FIRST ROUND
 
-    #parser.add_argument('-grn_size', type=int, default=50, help="GRN size") # number of genes in the GRN
-    args.grn_size = 50
-    #parser.add_argument('-pop_size', type=int, default=1000, help="Population size")
-    args.pop_size = 1000
-    #parser.add_argument('-alpha', type=int, default=10, help="Alpha for sigmoid function")
-    args.alpha = 10
-    #parser.add_argument('-num_genes_consider', type=float, default=0.5, help="proportion of genes considered for fitness")
-    args.num_genes_consider = 1
-    #parser.add_argument('-max_age', type=int, default=30, help="max age at which individual is replaced by its kid")
-    args.max_age = 1000000000000000
-    #parser.add_argument('-proj', type=str, default="EC_final_project", help="Name of the project (for wandb)")
-    args.proj = "phd_chapt_3"
-    #parser.add_argument('-crossover', type=str, default="NO", help="Options: NO, uniform, twopoint")
-    args.crossover = "NO"
-    #parser.add_argument('-crossover_freq', type=float, default=0.5, help="number of individuals that will undergo crossover")
-    args.crossover_freq = 0.5
-    #parser.add_argument('-adaptive_mut', type=bool, default=False, help="if you want adaptive mutation rate")
-    args.adaptive_mut = False
-    #parser.add_argument('-meta_mut_rate', type=float, default=0.01, help="how much you increase or decrease mut_size and mut_rate")
-    args.meta_mut_rate = 0.01
-    
+    parser.add_argument('-grn_size', type=int, default=50, help="GRN size") # number of genes in the GRN
+    parser.add_argument('-pop_size', type=int, default=1000, help="Population size")
+    parser.add_argument('-alpha', type=int, default=10, help="Alpha for sigmoid function")
+    parser.add_argument('-num_genes_consider', type=float, default=1, help="proportion of genes considered for fitness")
+    parser.add_argument('-max_age', type=int, default=1000000000000000, help="max age at which individual is replaced by its kid")
+    parser.add_argument('-proj', type=str, default="phd_chapt_3", help="Name of the project (for wandb)")
+    parser.add_argument('-crossover', type=str, default="NO", help="Options: NO, uniform, twopoint")
+    parser.add_argument('-crossover_freq', type=float, default=0.5, help="number of individuals that will undergo crossover")
+    parser.add_argument('-adaptive_mut', type=bool, default=False, help="if you want adaptive mutation rate")
+    parser.add_argument('-meta_mut_rate', type=float, default=0.01, help="how much you increase or decrease mut_size and mut_rate")
+    parser.add_argument('-selection_prop', type=float, default=0.1, help="what proportion of the population to test for strategy (specialist, generatist)")
+    parser.add_argument('-exp_type', type=str, default="BASIC", help="Name your experiment for grouping")
     
     # DO CHANGE
-    #parser.add_argument('-mut_rate', type=float, default=0.1, help="rate of mutation (i.e. number of genes to mutate)")
-    args.mut_rate = 0.1
-    #parser.add_argument('-mut_size', type=float, default=0.5, help="size of mutation")
-    args.mut_size = 0.5
-    #parser.add_argument('-num_generations', type=int, default=100000, help="number of generations to run the experiment for") # number of generations
-    args.num_generations = 30000
-    #parser.add_argument('-truncation_prop', type=float, default=0.2, help="proportion of individuals selected for reproduction")
-    args.truncation_prop = 0.2
-    #parser.add_argument('-season_len', type=int, default=100, help="number of generations between environmental flips")
-    args.season_len = 400
-    #parser.add_argument('-selection_size', type=float, default=1, help="what proportion of the population to test for strategy (specialist, generatist)")
-    args.selection_prop = 0.1
-    #parser.add_argument('-exp_type', type=str, default="BASIC", help="Name your experiment for grouping")
-    args.exp_type = "basic_sl_500"
+    parser.add_argument('-mut_rate', type=float, default=0.1, help="rate of mutation (i.e. number of genes to mutate)")
+    
+    parser.add_argument('-mut_size', type=float, default=0.5, help="size of mutation")
+   
+    parser.add_argument('-num_generations', type=int, default=1000, help="number of generations to run the experiment for") # number of generations
+    
+    parser.add_argument('-truncation_prop', type=float, default=0.2, help="proportion of individuals selected for reproduction")
+    
+    parser.add_argument('-season_len', type=int, default=100, help="number of generations between environmental flips")
     
 
-    #args = parser.parse_args()
+    args = parser.parse_args()
 
     print("running code")
 
@@ -338,14 +314,9 @@ if __name__ == "__main__":
 
     args.truncation_size=int(args.truncation_prop*args.pop_size)
 
-
     print(args)
 
-    args.num_crossover = int(args.crossover_freq * args.pop_size) #how many individuals will be involved in crossover
 
-    #assert (
-        #args.num_crossover % 2 == 0
-    #), f"Error: select different crossover_freq: received {args.num_crossover}"
     assert (
         args.pop_size % args.truncation_size == 0
     ), "Error: select different trunction_prop, received {args.pops_size}"
