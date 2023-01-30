@@ -263,7 +263,7 @@ def evolutionary_algorithm(args, title, folder):
     stats["rebound_time_max"] = rebound_time_max
     stats["max_ages"] = max_ages
     stats["ave_ages"] = ave_ages
-    stats["best_grns"] = best_grns
+    stats["best_grns"] = [grn.detach().cpu().numpy() for grn in best_grns]
     stats["diversities"] = diversities
     stats["low"] = low
     stats["spec_A"] = spec_A
