@@ -102,7 +102,8 @@ def evolutionary_algorithm(args, title, folder):
 
     #Setting up
 
-    pop = torch.randn((args.pop_size, args.grn_size, args.grn_size)).to(device) # create population of random GRNs
+    #pop = torch.randn((args.pop_size, args.grn_size, args.grn_size)).to(device) # create population of random GRNs
+    pop = torch.rand((args.pop_size, args.grn_size)).to(device) #random number is the range 0-1
     num_genes_fit=int(args.num_genes_consider*args.grn_size)
     ones=torch.ones(1,int(num_genes_fit/2)).to(device)
     zeros=torch.zeros(1,int(num_genes_fit/2)).to(device)
@@ -144,12 +145,12 @@ def evolutionary_algorithm(args, title, folder):
         time_since_change += 1
 
         # Generating phenotypes
-        complexities = torch.zeros(args.pop_size).to(device)
-        state, complexities=get_phenotypes(args, pop, args.pop_size, complexities, if_comp= True)
-        ave_complex.append(args.max_iter-complexities.mean().item()) # 0 = never converged, the higher the number the earlier it converged so true "complexity" is inverse of this value
-        run.log({'average_complexity': args.max_iter-complexities.mean().item()}, commit=False)
+        #complexities = torch.zeros(args.pop_size).to(device)
+        #state, complexities=get_phenotypes(args, pop, args.pop_size, complexities, if_comp= True)
+        #ave_complex.append(args.max_iter-complexities.mean().item()) # 0 = never converged, the higher the number the earlier it converged so true "complexity" is inverse of this value
+        #run.log({'average_complexity': args.max_iter-complexities.mean().item()}, commit=False)
 
-        phenos = state[:,:,:num_genes_fit]
+        phenos = pop[:,:num_genes_fit]
 
         # TRACKING diversity among siblings of the same parent, from the previous generation
         if gen > 0:
@@ -292,7 +293,7 @@ if __name__ == "__main__":
     parser.add_argument('-adaptive_mut', type=bool, default=False, help="if you want adaptive mutation rate")
     parser.add_argument('-meta_mut_rate', type=float, default=0.01, help="how much you increase or decrease mut_size and mut_rate")
     parser.add_argument('-selection_prop', type=float, default=0.1, help="what proportion of the population to test for strategy (specialist, generatist)")
-    parser.add_argument('-exp_type', type=str, default="BASIC", help="Name your experiment for grouping")
+    parser.add_argument('-exp_type', type=str, default="nogrn_control", help="Name your experiment for grouping")
     
     # DO CHANGE
     parser.add_argument('-mut_rate', type=float, default=0.1, help="rate of mutation (i.e. number of genes to mutate)")
