@@ -226,11 +226,11 @@ def evolutionary_algorithm(args, title, folder):
         children = parents.repeat([num_child, 1, 1]) # create copies of parents
 
         # MUTATION
-        num_genes_mutate = int(args.grn_size*args.grn_size*len(children) * args.mut_rate)
-        mylist = torch.zeros(args.grn_size*args.grn_size*len(children), device=device)
+        num_genes_mutate = int(args.grn_size*len(children) * args.mut_rate)
+        mylist = torch.zeros(args.grn_size*len(children), device=device)
         mylist[:num_genes_mutate] = 1
-        shuffled_idx = torch.randperm(args.grn_size*args.grn_size*len(children), device=device)
-        mask = mylist[shuffled_idx].reshape(len(children),args.grn_size,args.grn_size) #select genes to mutate
+        shuffled_idx = torch.randperm(args.grn_size*len(children), device=device)
+        mask = mylist[shuffled_idx].reshape(len(children),args.grn_size) #select genes to mutate
         children = children + (children*mask)*torch.randn(size=children.shape, device=device) * args.mut_size  # mutate only children only at certain genes
 
         pop[children_locs] = children # put children into population
