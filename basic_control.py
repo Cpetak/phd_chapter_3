@@ -223,7 +223,7 @@ def evolutionary_algorithm(args, title, folder):
 
         parents = pop[parent_locs].detach().clone() # access parents' matricies
         num_child = int(args.pop_size/args.truncation_size) - 1
-        children = parents.repeat([num_child, 1, 1]) # create copies of parents
+        children = parents.repeat([num_child, 1]) # create copies of parents
 
         # MUTATION
         num_genes_mutate = int(args.grn_size*len(children) * args.mut_rate)
