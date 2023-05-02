@@ -138,6 +138,14 @@ def evolutionary_algorithm(args, title, folder):
 
     best_grns = []
 
+    # create all possible masks for 2-point crossover
+    if args.crossover == "twopoint":
+        idxs = np.array(list(combinations(range(0, args.grn_size+1),2)))
+        masks = torch.zeros(len(idxs),args.grn_size,args.grn_size, device="cuda")
+        for i,(start,end) in enumerate(idxs):
+          masks[i,:,start:end] = 1
+        antimasks = 1 - masks
+
     # Main for loop
     for gen in trange(args.num_generations):
 
@@ -234,6 +242,34 @@ def evolutionary_algorithm(args, title, folder):
 
         pop[children_locs] = children # put children into population
 
+        # Crossover, between kids (concenptually the same as if I first did the crossover, then the mutation), otherwise same as basic model! parents can crossover too...
+        if args.crossover != "NO":
+            cpairs=torch.randperm(args.pop_size, device=device)[:args.num_crossover] #create kid pairs, num_crossover has to be divisibale by 2
+
+            if args.crossover == "twopoint":
+                random_mask_pos = torch.randperm(len(masks))[:int(args.num_crossover/2)] #get a random set of masks
+                mymasks=masks[random_mask_pos]
+                myantimasks=antimasks[random_mask_pos]
+
+            if args.crossover == "uniform":
+                all_col = torch.arange(args.grn_size, device=device)
+                y=all_col.repeat(int(args.num_crossover/2),1)
+                indices = torch.argsort(torch.rand(*y.shape), dim=-1)
+                result = y[torch.arange(y.shape[0]).unsqueeze(-1), indices] #create random permutation of column orders
+
+                mymasks = torch.where(result>args.grn_size/2, 0, 1) #make it into a 2D mask
+                mymasks=mymasks.repeat(1,args.grn_size).reshape(int(args.num_crossover/2),args.grn_size,args.grn_size)
+                myantimasks = torch.where(result<=args.grn_size/2, 0, 1) #make inverse into a 2D mask
+                myantimasks=myantimasks.repeat(1,args.grn_size).reshape(int(args.num_crossover/2),args.grn_size,args.grn_size)
+
+            n1=pop[cpairs[int(len(cpairs)/2):]] * mymasks + pop[cpairs[:int(len(cpairs)/2)]] * myantimasks # first cpair/2 individuals in cpairs, after crossover
+            n2=pop[cpairs[:int(len(cpairs)/2)]] * mymasks + pop[cpairs[int(len(cpairs)/2):]] * myantimasks # second cpair/2 individuals in cpairs, after crossover
+            all_pop=torch.arange(args.pop_size, device=device)
+            not_crossed = [i for i in all_pop if i not in cpairs] # plus the individuals left out of crossover!!
+            not_crossed_mats = pop[torch.stack(not_crossed,0)]
+            new_pop = torch.cat((n1, n2, not_crossed_mats), 0)
+            pop=new_pop
+
         max_ages.append(ages.max().item())
         ave_ages.append(ages.mean().item())
         run.log({'max_ages': ages.max().item()}, commit=False)
@@ -287,12 +323,10 @@ if __name__ == "__main__":
     parser.add_argument('-num_genes_consider', type=float, default=1, help="proportion of genes considered for fitness")
     parser.add_argument('-max_age', type=int, default=1000000000000000, help="max age at which individual is replaced by its kid")
     parser.add_argument('-proj', type=str, default="phd_chapt_3", help="Name of the project (for wandb)")
-    parser.add_argument('-crossover', type=str, default="NO", help="Options: NO, uniform, twopoint")
-    parser.add_argument('-crossover_freq', type=float, default=0.5, help="number of individuals that will undergo crossover")
     parser.add_argument('-adaptive_mut', type=bool, default=False, help="if you want adaptive mutation rate")
     parser.add_argument('-meta_mut_rate', type=float, default=0.01, help="how much you increase or decrease mut_size and mut_rate")
     parser.add_argument('-selection_prop', type=float, default=0.1, help="what proportion of the population to test for strategy (specialist, generatist)")
-    parser.add_argument('-exp_type', type=str, default="BASIC", help="Name your experiment for grouping")
+    parser.add_argument('-exp_type', type=str, default="crossover", help="Name your experiment for grouping")
     
     # DO CHANGE
     parser.add_argument('-mut_rate', type=float, default=0.1, help="rate of mutation (i.e. number of genes to mutate)")
@@ -305,6 +339,8 @@ if __name__ == "__main__":
     
     parser.add_argument('-season_len', type=int, default=100, help="number of generations between environmental flips")
     
+    parser.add_argument('-crossover', type=str, default="NO", help="Options: NO, uniform, twopoint")
+    parser.add_argument('-crossover_freq', type=float, default=0.5, help="number of individuals that will undergo crossover")
 
     args = parser.parse_args()
 
@@ -314,9 +350,13 @@ if __name__ == "__main__":
 
     args.truncation_size=int(args.truncation_prop*args.pop_size)
 
+    args.num_crossover = int(args.crossover_freq * args.pop_size) #how many individuals will be involved in crossover
+
     print(args)
 
-
+    assert (
+        args.num_crossover % 2 == 0
+    ), f"Error: select different crossover_freq: received {args.num_crossover}"
     assert (
         args.pop_size % args.truncation_size == 0
     ), "Error: select different trunction_prop, received {args.pops_size}"
