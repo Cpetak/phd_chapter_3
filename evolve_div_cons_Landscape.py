@@ -114,7 +114,7 @@ def evolutionary_algorithm(args, title):
             best_con = most_con.detach().clone().cpu()
             best_con_gen = gen
 
-        divs=diver(pop, targA)
+        divs=diver(args,pop, targA)
         most_div=pop[np.argsort(divs.cpu().detach().numpy())[-1]]
         most_div_score=divs[np.argsort(divs.cpu().detach().numpy())[-1]]
         if most_div_score > best_div_score:
