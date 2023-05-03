@@ -46,7 +46,7 @@ def con(my_phenos):
     return con
 
 #standard deviation between children fitnesses
-def diver(my_pop, targA):
+def diver(args,my_pop, targA):
     num_clones=20
     clones = my_pop.repeat([num_clones, 1, 1])
 
@@ -59,7 +59,7 @@ def diver(my_pop, targA):
     clones = clones + (clones*mask)*torch.randn(size=clones.shape, device=device) * args.mut_size  # mutate only clones only at certain genes
 
     # Get clone phenotypes
-    clone_phenos=get_phenotypes(clones, len(clones))
+    clone_phenos=get_phenotypes(args, clones, len(clones))
     clone_phenos=torch.squeeze(clone_phenos)
     
     reshaped=torch.reshape(clone_phenos, (num_clones, len(my_pop), args.grn_size))
