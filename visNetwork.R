@@ -6,9 +6,14 @@ library(visNetwork)
 np <- import("numpy")
 
 # data reading
-mat <- np$load("network_mutated.npy")
-mat<-round(mat,0)
+mat <- np$load("network_ori.npy")
 mat<-abs(mat)
+hist(mat, xlim=range(0,100), breaks=500)
+
+mat<-round(mat,0)
+
+mat[(mat>30) & (mat<50)]
+
 
 ## make igraph object
 test.gr <- graph_from_adjacency_matrix(mat, mode="directed", weighted=T)
@@ -19,11 +24,13 @@ test.visn <- toVisNetworkData(test.gr)
 test.visn$edges$value <- test.visn$edges$weight
 #test.visn$edges$weight <- 100
 
-test.visn$edges
+df1<-test.visn$edges
 #test.visn$edges = subset(test.visn$edges, select = -c(weight,value) )
 #test.visn$nodes = subset(test.visn$nodes, select = -c(label) )
+df2<-df1[!(df1$weight==1),]
 
-write.csv(test.visn$edges, "network_mutated.csv", row.names=FALSE)
+
+write.csv(df2, "random_network_mutated.csv", row.names=FALSE)
 
 visNetwork(test.visn$nodes, test.visn$edges,height = "1000px",width="100%") %>%
   visPhysics(enabled = FALSE)%>%
